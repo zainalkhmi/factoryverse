@@ -5,6 +5,8 @@
 
 import { storageRepository, SEED_HYDRAULIC_MODEL } from '../../storage/storage-repository';
 import type { Procedure, ProcedureStep, StepType, InteractionType, ComponentId, ModelComponent } from '../../types';
+import { stepCheckService } from '../../inspection/step-check-service';
+import { openStepCheckModal } from './StepCheckModal';
 
 export function renderVisualProcedureEditorView(
   container: HTMLElement,
@@ -179,6 +181,7 @@ export function renderVisualProcedureEditorView(
                     <option value="instruction" ${currentStep.stepType === 'instruction' ? 'selected' : ''}>Instruction Card</option>
                     <option value="assembly_action" ${currentStep.stepType === 'assembly_action' ? 'selected' : ''}>Assembly Action (Direct Hand Grab)</option>
                     <option value="measurement" ${currentStep.stepType === 'measurement' ? 'selected' : ''}>Dimensional Measurement</option>
+                    <option value="step_check" ${currentStep.stepType === 'step_check' ? 'selected' : ''}>👁️ Step Check (Vuforia AI Visual Inspection)</option>
                     <option value="checkpoint" ${currentStep.stepType === 'checkpoint' ? 'selected' : ''}>Visual Checkpoint</option>
                     <option value="confirmation" ${currentStep.stepType === 'confirmation' ? 'selected' : ''}>Final Confirmation</option>
                   </select>
@@ -313,6 +316,43 @@ export function renderVisualProcedureEditorView(
                       ${(Number(currentStep.inspectionRule?.nominalValue ?? 24.0) - Number(currentStep.inspectionRule?.tolerance ?? 0.1)).toFixed(2)} – ${(Number(currentStep.inspectionRule?.nominalValue ?? 24.0) + Number(currentStep.inspectionRule?.tolerance ?? 0.1)).toFixed(2)} mm
                     </strong>
                   </div>
+                </div>
+              </div>
+
+              <!-- Vuforia Step Check — AI Visual Inspection Gate -->
+              <div style="border-top: 1px solid var(--border-subtle); padding-top: 16px; margin-top: 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 14px;">👁️</span>
+                    <span style="font-size: 12px; font-weight: 700; color: #fff; text-transform: uppercase;">Step Check (Visual AI)</span>
+                  </div>
+                  <input type="checkbox" id="ed-check-has-stepcheck" ${currentStep.stepCheckTemplateId ? 'checked' : ''} />
+                </div>
+
+                <div id="ed-stepcheck-fields" style="${currentStep.stepCheckTemplateId ? 'display: block;' : 'display: none;'}">
+                  <div class="form-group">
+                    <label class="form-label">Masked Template Target</label>
+                    <select id="ed-select-stepcheck-template" class="form-select">
+                      ${stepCheckService.getTemplates().map(t => `
+                        <option value="${t.id}" ${(currentStep.stepCheckTemplateId || 'TEMPL-ROD-01') === t.id ? 'selected' : ''}>
+                          ${t.name} (${t.targetComponentId})
+                        </option>
+                      `).join('')}
+                    </select>
+                  </div>
+                  <div style="background: #0f1c2e; border: 1px solid #1e3a5f; border-radius: var(--radius-sm); padding: 10px; margin-bottom: 12px;">
+                    <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Expected Runtime Label:</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #22c55e;">
+                      ${(stepCheckService.getTemplateById(currentStep.stepCheckTemplateId || 'TEMPL-ROD-01'))?.label || 'PASS_SEATED'}
+                    </div>
+                    <div style="font-size: 11px; color: #38bdf8; margin-top: 4px;">
+                      Confidence Threshold: ${((stepCheckService.getTemplateById(currentStep.stepCheckTemplateId || 'TEMPL-ROD-01'))?.confidenceThreshold ?? 0.82) * 100}%
+                    </div>
+                  </div>
+
+                  <button id="ed-btn-test-stepcheck" type="button" class="btn btn-primary btn-sm" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>👁️</span> Test in Live Viewfinder (Creator Mode)
+                  </button>
                 </div>
               </div>
 
@@ -517,6 +557,32 @@ export function renderVisualProcedureEditorView(
       container.querySelector('#ed-input-nominal')?.addEventListener('input', updateInspection);
       container.querySelector('#ed-input-tolerance')?.addEventListener('input', updateInspection);
       container.querySelector('#ed-input-unit')?.addEventListener('input', updateInspection);
+
+      // Step Check Gate Checkbox & Select
+      const checkStepCheck = container.querySelector('#ed-check-has-stepcheck') as HTMLInputElement;
+      checkStepCheck?.addEventListener('change', () => {
+        if (checkStepCheck.checked) {
+          currentStep.stepCheckTemplateId = 'TEMPL-ROD-01';
+          currentStep.stepType = 'step_check';
+        } else {
+          delete currentStep.stepCheckTemplateId;
+          if (currentStep.stepType === 'step_check') {
+            currentStep.stepType = 'instruction';
+          }
+        }
+        isDirty = true;
+        render();
+      });
+
+      container.querySelector('#ed-select-stepcheck-template')?.addEventListener('change', (e) => {
+        currentStep.stepCheckTemplateId = (e.target as HTMLSelectElement).value;
+        isDirty = true;
+        render();
+      });
+
+      container.querySelector('#ed-btn-test-stepcheck')?.addEventListener('click', () => {
+        openStepCheckModal(currentStep.stepCheckTemplateId || 'TEMPL-ROD-01');
+      });
     }
 
     // Top Action Handlers

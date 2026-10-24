@@ -8,6 +8,7 @@ import { storageRepository, SEED_HYDRAULIC_MODEL } from '../../storage/storage-r
 import type { ModelAsset, ModelComponent } from '../../types';
 import { labelGeneratorService } from '../services/label-generator-service';
 import { plantEnvironmentService } from '../services/plant-environment-service';
+import { openStepCheckModal } from './StepCheckModal';
 
 export function renderModelLibraryView(
   container: HTMLElement,
@@ -63,6 +64,10 @@ export function renderModelLibraryView(
 
           <button id="model-btn-export-db" class="btn btn-secondary">
             <span>💾</span> Export Target DB
+          </button>
+
+          <button id="model-btn-step-check" class="btn btn-secondary">
+            <span>👁️</span> Step Check
           </button>
 
           <button id="model-btn-explode" class="btn btn-secondary">
@@ -185,6 +190,10 @@ export function renderModelLibraryView(
     container.querySelector('#model-btn-export-db')?.addEventListener('click', () => {
       plantEnvironmentService.downloadTargetDatabaseJSON();
       alert('Target Database Package exported successfully as "factoryverse-target-database.json"!');
+    });
+
+    container.querySelector('#model-btn-step-check')?.addEventListener('click', () => {
+      openStepCheckModal('TEMPL-ROD-01');
     });
 
     container.querySelector('#model-select-plant-env')?.addEventListener('change', (e) => {

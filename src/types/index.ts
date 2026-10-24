@@ -16,7 +16,8 @@ export type StepType =
   | 'measurement'
   | 'checkpoint'
   | 'safety_warning'
-  | 'confirmation';
+  | 'confirmation'
+  | 'step_check';
 
 export type InteractionType =
   | 'identify'
@@ -40,6 +41,7 @@ export interface ProcedureStep {
   mediaUrl?: string;
   mediaType?: 'image' | 'video';
   inspectionRule?: InspectionRule;
+  stepCheckTemplateId?: string;
   estimatedDurationSeconds: number;
   spatialAnnotation?: {
     position: [number, number, number];
