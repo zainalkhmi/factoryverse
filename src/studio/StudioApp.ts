@@ -19,6 +19,7 @@ import type { TrainingEngine } from '../training/training-engine';
 import type { AssemblySystem } from '../xr/assembly-system';
 import { voiceCommandService } from '../xr/voice-command-service';
 import { barcodeScannerService } from './services/barcode-scanner-service';
+import { plantEnvironmentService } from './services/plant-environment-service';
 
 export class StudioApp {
   private currentView: string = 'dashboard';
@@ -293,6 +294,14 @@ export class StudioApp {
       this.navigateTo('dashboard');
     });
 
+    const xrEnvBtn = document.getElementById('xr-btn-hud-env');
+    xrEnvBtn?.addEventListener('click', () => {
+      const next = plantEnvironmentService.cycleNextPreset();
+      if (xrEnvBtn) {
+        xrEnvBtn.textContent = `🏭 ${next.name.slice(0, 16)}...`;
+      }
+    });
+
     const xrCadGuideBtn = document.getElementById('xr-btn-hud-cad-guide');
     xrCadGuideBtn?.addEventListener('click', () => {
       if (this.assemblySystem) {
@@ -391,6 +400,9 @@ export class StudioApp {
             xrCadGuideBtn.className = visible ? 'btn btn-secondary btn-sm' : 'btn btn-danger btn-sm';
           }
         }
+      } else if (cmd === 'environment' || cmd === 'plant' || cmd === 'location') {
+        const next = plantEnvironmentService.cycleNextPreset();
+        if (xrEnvBtn) xrEnvBtn.textContent = `🏭 ${next.name.slice(0, 16)}...`;
       }
     });
   }

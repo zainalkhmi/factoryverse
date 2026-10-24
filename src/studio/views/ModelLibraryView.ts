@@ -7,6 +7,7 @@
 import { storageRepository, SEED_HYDRAULIC_MODEL } from '../../storage/storage-repository';
 import type { ModelAsset, ModelComponent } from '../../types';
 import { labelGeneratorService } from '../services/label-generator-service';
+import { plantEnvironmentService } from '../services/plant-environment-service';
 
 export function renderModelLibraryView(
   container: HTMLElement,
@@ -41,18 +42,31 @@ export function renderModelLibraryView(
               .join('')}
           </select>
 
+          <!-- Plant Facility Area Preset Selector -->
+          <select id="model-select-plant-env" class="form-select" style="max-width: 220px;">
+            ${plantEnvironmentService.getPlantPresets().map((p) => `
+              <option value="${p.id}" ${p.id === plantEnvironmentService.getActivePreset().id ? 'selected' : ''}>
+                🏭 ${p.name.slice(0, 22)}...
+              </option>
+            `).join('')}
+          </select>
+
           <!-- Upload CAD Button -->
           <label class="btn btn-primary" style="cursor: pointer; margin-bottom: 0;">
-            <span>📂</span> Upload CAD (.GLB / .GLTF)
+            <span>📂</span> Upload CAD
             <input type="file" id="model-file-upload" accept=".glb,.gltf" style="display: none;" />
           </label>
 
           <button id="model-btn-labels" class="btn btn-secondary">
-            <span>🏷️</span> Equipment Labels & VuMarks
+            <span>🏷️</span> Labels
+          </button>
+
+          <button id="model-btn-export-db" class="btn btn-secondary">
+            <span>💾</span> Export Target DB
           </button>
 
           <button id="model-btn-explode" class="btn btn-secondary">
-            <span>💥</span> ${exploded ? 'Collapse Assembly' : 'Exploded View'}
+            <span>💥</span> ${exploded ? 'Collapse' : 'Explode'}
           </button>
         </div>
       </div>
@@ -166,6 +180,17 @@ export function renderModelLibraryView(
     // Bind Handlers
     container.querySelector('#model-btn-labels')?.addEventListener('click', () => {
       labelGeneratorService.openLabelGeneratorModal();
+    });
+
+    container.querySelector('#model-btn-export-db')?.addEventListener('click', () => {
+      plantEnvironmentService.downloadTargetDatabaseJSON();
+      alert('Target Database Package exported successfully as "factoryverse-target-database.json"!');
+    });
+
+    container.querySelector('#model-select-plant-env')?.addEventListener('change', (e) => {
+      const val = (e.target as HTMLSelectElement).value;
+      plantEnvironmentService.setPlantPreset(val);
+      render();
     });
 
     container.querySelector('#model-btn-explode')?.addEventListener('click', () => {
