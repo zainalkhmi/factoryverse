@@ -1,0 +1,95 @@
+<style>
+  .panel-root {
+    flex-direction: column;
+    width: 650px;
+    background-color: #0d1622;
+    border-color: #243b53;
+    border-width: 2px;
+    border-radius: 14px;
+    padding: 24px;
+  }
+
+  .eyebrow {
+    color: #f59e0b;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+  }
+
+  .step-title {
+    color: #ffffff;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 32px;
+    margin-bottom: 12px;
+  }
+
+  .step-instruction {
+    color: #cbd5e1;
+    font-size: 17px;
+    line-height: 25px;
+    margin-bottom: 16px;
+  }
+
+  .checkpoint-card {
+    flex-direction: column;
+    background-color: #172433;
+    border-color: #2b425b;
+    border-width: 1px;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+
+  .checkpoint-header {
+    color: #38bdf8;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .checkpoint-text {
+    color: #e2e8f0;
+    font-size: 15px;
+    line-height: 21px;
+  }
+
+  .button-row {
+    flex-direction: row;
+    gap: 12px;
+    justify-content: flex-start;
+  }
+
+  .nav-btn {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+</style>
+<Panel class="panel-root">
+  <div class="eyebrow">FACTORYVERSE EXPERT XR | INSTRUCTION</div>
+  <div id="panel-step-title" class="step-title">Step 1: Identify Components</div>
+  <div id="panel-step-desc" class="step-instruction">
+    Inspect the parts tray. Verify the cylinder barrel, hard-chrome rod, and gland end cap.
+  </div>
+  <div class="checkpoint-card">
+    <div class="checkpoint-header">ACCEPTANCE CHECKPOINT</div>
+    <div id="panel-checkpoint-text" class="checkpoint-text">
+      Required components identified and verified for surface defects.
+    </div>
+  </div>
+  <div class="button-row">
+    <Button id="prev-step-btn" class="nav-btn">
+      <ButtonLabel>Previous</ButtonLabel>
+    </Button>
+    <Button id="next-step-btn" class="nav-btn">
+      <ButtonLabel>Next Step</ButtonLabel>
+    </Button>
+    <Button id="reset-workstation-btn" class="nav-btn">
+      <ButtonLabel>Reset</ButtonLabel>
+    </Button>
+  </div>
+</Panel>

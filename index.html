@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="theme-color" content="#080d14" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>" />
+    <title>FactoryVerse Expert XR — Industrial Work Instruction Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  </head>
+  <body style="margin: 0; background-color: #080d14; color: #f1f5f9; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+    <!-- FactoryVerse Studio Desktop Application -->
+    <div id="app-layout"></div>
+
+    <!-- FactoryVerse XR Player (WebXR / IWSDK Immersive Canvas & HUD) -->
+    <div id="xr-player-view">
+      <div id="scene-container"></div>
+
+      <!-- XR Operator HUD Overlay -->
+      <div class="xr-hud-overlay">
+        <div class="xr-hud-card" style="max-width: 480px;">
+          <p id="xr-hud-proc-title" style="margin-bottom: 2px;">Hydraulic Cylinder Assembly (SOP-HYD-042)</p>
+          <h3 id="xr-hud-step-title" style="margin-bottom: 4px;">Step 1 — Identify Components</h3>
+          <div id="xr-hud-step-desc" style="font-size: 13px; color: #cbd5e1; line-height: 1.4; margin-bottom: 6px;">
+            Inspect the parts tray. Verify the cylinder barrel, hard-chrome rod, and gland end cap.
+          </div>
+          <div id="xr-hud-checkpoint" style="font-size: 12px; font-weight: 600; color: #38bdf8;">
+            CHECKPOINT: Required components identified.
+          </div>
+          <div id="xr-hud-voice-badge" style="display: none; font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 8px; border-radius: 4px; margin-top: 8px;">
+            🎙️ Listening: Say "Next", "Back", "Pass"
+          </div>
+        </div>
+
+        <div>
+          <button id="xr-btn-exit-to-studio" class="btn btn-secondary">
+            <span>←</span> Return to Studio
+          </button>
+        </div>
+      </div>
+
+      <!-- XR Bottom Testing & Navigation Controls (Desktop IWER helper) -->
+      <div class="xr-bottom-controls">
+        <button id="xr-btn-hud-cad-guide" class="btn btn-secondary btn-sm">📐 CAD Guide View</button>
+        <button id="xr-btn-hud-scan" class="btn btn-secondary btn-sm">📷 Scan QR</button>
+        <button id="xr-btn-hud-voice" class="btn btn-secondary btn-sm">🎤 Voice Commands</button>
+        <button id="xr-btn-hud-reset" class="btn btn-secondary btn-sm">↺ Reset Scene</button>
+        <button id="xr-btn-hud-pass" class="btn btn-primary btn-sm">Simulate 24.02 mm (PASS)</button>
+        <button id="xr-btn-hud-fail" class="btn btn-danger btn-sm">Simulate 24.18 mm (FAIL)</button>
+        <button id="xr-btn-hud-next" class="btn btn-amber btn-sm">Next Step →</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>

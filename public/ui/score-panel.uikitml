@@ -1,0 +1,79 @@
+<style>
+  .panel-root {
+    flex-direction: column;
+    width: 580px;
+    background-color: #0b131e;
+    border-color: #22c55e;
+    border-width: 2px;
+    border-radius: 14px;
+    padding: 24px;
+  }
+
+  .eyebrow {
+    color: #4ade80;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+  }
+
+  .panel-title {
+    color: #ffffff;
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .score-card {
+    flex-direction: column;
+    background-color: #13271f;
+    border-color: #166534;
+    border-width: 1px;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+
+  .score-val {
+    color: #4ade80;
+    font-size: 34px;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+
+  .score-detail {
+    color: #cbd5e1;
+    font-size: 15px;
+    line-height: 22px;
+  }
+
+  .button-row {
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .action-btn {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+</style>
+<Panel class="panel-root">
+  <div class="eyebrow">TRAINING COMPLETION | EVALUATION</div>
+  <div class="panel-title">Session Performance Report</div>
+  <div class="score-card">
+    <div id="vr-score-val" class="score-val">Score: 95 / 100</div>
+    <div id="vr-score-detail" class="score-detail">
+      Procedure: Hydraulic Cylinder Assembly & Inspection (SOP-HYD-042)
+    </div>
+    <div id="vr-score-status" class="score-detail">
+      Certification Status: PASSED (Dimensional clearance verified within spec)
+    </div>
+  </div>
+  <div class="button-row">
+    <Button id="vr-restart-session-btn" class="action-btn">
+      <ButtonLabel>Restart Scenario</ButtonLabel>
+    </Button>
+  </div>
+</Panel>
