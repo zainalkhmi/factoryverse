@@ -16,10 +16,20 @@
 
     <!-- FactoryVerse XR Player (WebXR / IWSDK Immersive Canvas & HUD) -->
     <div id="xr-player-view">
-      <div id="scene-container"></div>
+      <!-- Live Video Passthrough Feed for AR Mode (Desktop/Mobile WebXR simulation fallback) -->
+      <video id="xr-passthrough-video" autoplay playsinline muted style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; display: none;"></video>
+      
+      <!-- AR Spatial Alignment Grid & Optical Guide -->
+      <div id="xr-ar-reticle" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; display: none; background-image: radial-gradient(circle at 50% 65%, rgba(56, 189, 248, 0.12) 0%, transparent 60%);">
+        <div style="position: absolute; top: 16px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #4ade80; background: rgba(15, 23, 42, 0.85); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(74, 222, 128, 0.4); letter-spacing: 0.5px;">
+          ● AR PASSTHROUGH ACTIVE · PHYSICAL WORKBENCH ANCHORED
+        </div>
+      </div>
+
+      <div id="scene-container" style="position: relative; z-index: 2;"></div>
 
       <!-- XR Operator HUD Overlay -->
-      <div class="xr-hud-overlay">
+      <div class="xr-hud-overlay" style="z-index: 10;">
         <div class="xr-hud-card" style="max-width: 480px;">
           <p id="xr-hud-proc-title" style="margin-bottom: 2px;">Hydraulic Cylinder Assembly (SOP-HYD-042)</p>
           <h3 id="xr-hud-step-title" style="margin-bottom: 4px;">Step 1 — Identify Components</h3>
@@ -28,6 +38,9 @@
           </div>
           <div id="xr-hud-checkpoint" style="font-size: 12px; font-weight: 600; color: #38bdf8;">
             CHECKPOINT: Required components identified.
+          </div>
+          <div id="xr-hud-ar-badge" style="display: none; font-size: 11px; background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 4px 8px; border-radius: 4px; margin-top: 8px;">
+            👓 AR Passthrough Active · 6DOF Spatial Anchor · Depth Occlusion: ON
           </div>
           <div id="xr-hud-voice-badge" style="display: none; font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 8px; border-radius: 4px; margin-top: 8px;">
             🎙️ Listening: Say "Next", "Back", "Pass"
@@ -42,10 +55,11 @@
       </div>
 
       <!-- XR Bottom Testing & Navigation Controls (Desktop IWER helper) -->
-      <div class="xr-bottom-controls">
+      <div class="xr-bottom-controls" style="z-index: 10;">
+        <button id="xr-btn-hud-ar-toggle" class="btn btn-amber btn-sm">👓 Mode: VR Plant</button>
         <button id="xr-btn-hud-env" class="btn btn-secondary btn-sm">🏭 Plant: Bay 3</button>
         <button id="xr-btn-hud-cad-guide" class="btn btn-secondary btn-sm">📐 CAD Guide View</button>
-        <button id="xr-btn-hud-scan" class="btn btn-secondary btn-sm">📷 Scan QR</button>
+        <button id="xr-btn-hud-scan" class="btn btn-secondary btn-sm">📷 Vuforia AR</button>
         <button id="xr-btn-hud-voice" class="btn btn-secondary btn-sm">🎤 Voice Commands</button>
         <button id="xr-btn-hud-reset" class="btn btn-secondary btn-sm">↺ Reset Scene</button>
         <button id="xr-btn-hud-pass" class="btn btn-primary btn-sm">Simulate 24.02 mm (PASS)</button>

@@ -38,4 +38,56 @@ describe('BarcodeScannerService (Vuforia Engine Parity)', () => {
     expect(res.procedureId).toBeUndefined();
     expect(res.code).toBe('UNKNOWN-TAG-999');
   });
+
+  it('should handle openScannerModal gracefully in both node and browser environments', () => {
+    let called = false;
+    service.openScannerModal(() => { called = true; }, undefined, 'model_target');
+    expect(called).toBe(false);
+
+    // Mock minimal DOM to verify modal rendering and selection
+    const mockElements: Record<string, any> = {};
+    (globalThis as any).document = {
+      getElementById: (id: string) => mockElements[id] || null,
+      createElement: () => {
+        const el: any = {
+          id: '',
+          style: {},
+          innerHTML: '',
+          querySelector: (sel: string) => {
+            if (sel === '#scanner-btn-action-ar') {
+              return { addEventListener: (_ev: string, cb: any) => { el._onArClick = cb; } };
+            }
+            return { addEventListener: () => {} };
+          },
+          querySelectorAll: () => [],
+          remove: () => {},
+        };
+        return el;
+      },
+      body: {
+        appendChild: (child: any) => {
+          mockElements[child.id] = child;
+        },
+      },
+    };
+
+    let selectedProc = '';
+    let selectedMode: 'vr' | 'ar' | undefined = undefined;
+    service.openScannerModal((procId, mode) => {
+      selectedProc = procId;
+      selectedMode = mode;
+    }, undefined, 'model_target');
+
+    const modal = mockElements['barcode-scanner-modal'];
+    expect(modal).toBeDefined();
+    expect(modal.innerHTML).toContain('Vuforia Engine AR Target');
+    expect(modal.innerHTML).toContain('Model Target (CAD Contour)');
+    expect(modal.innerHTML).toContain('WebXR AR Passthrough');
+
+    modal._onArClick?.();
+    expect(selectedProc).toBe('proc-hyd-cyl-01');
+    expect(selectedMode).toBe('ar');
+
+    delete (globalThis as any).document;
+  });
 });

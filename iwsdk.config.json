@@ -13,7 +13,15 @@
       "mode": "vr",
       "offer": "always",
       "features": {
-        "handTracking": true
+        "handTracking": true,
+        "hitTest": true,
+        "planeDetection": true,
+        "anchors": true,
+        "depthSensing": {
+          "required": false,
+          "usage": "gpu-optimized",
+          "format": "float32"
+        }
       }
     },
     "input": {
@@ -40,8 +48,8 @@
       "locomotion": false,
       "grabbing": true,
       "physics": false,
-      "sceneUnderstanding": false,
-      "environmentRaycast": false,
+      "sceneUnderstanding": true,
+      "environmentRaycast": true,
       "spatialUI": {
         "kit": "horizon",
         "preferredColorScheme": "dark"

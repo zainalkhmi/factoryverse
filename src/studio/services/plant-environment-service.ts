@@ -102,6 +102,18 @@ export const PLANT_AREA_PRESETS: PlantAreaPreset[] = [
     domeGround: [0.12, 0.14, 0.18, 1],
     exposure: 1.40,
   },
+  {
+    id: 'ar_passthrough',
+    name: 'AR Passthrough (Mixed Reality)',
+    code: 'PLANT-AR-MR',
+    description: 'Real-world optical passthrough for Meta Quest 3 & WebXR AR with hand depth occlusion and physical table anchoring.',
+    facilityType: 'Spatial Mixed Reality',
+    lightingTone: 'Adaptive Room Ambient',
+    domeSky: [0, 0, 0, 0],
+    domeEquator: [0, 0, 0, 0],
+    domeGround: [0, 0, 0, 0],
+    exposure: 1.0,
+  },
 ];
 
 export class PlantEnvironmentService {
@@ -114,6 +126,14 @@ export class PlantEnvironmentService {
 
   public getActivePreset(): PlantAreaPreset {
     return PLANT_AREA_PRESETS.find((p) => p.id === this.activePresetId) || PLANT_AREA_PRESETS[0];
+  }
+
+  public isARPassthroughActive(): boolean {
+    return this.activePresetId === 'ar_passthrough';
+  }
+
+  public setARPassthrough(enabled: boolean): PlantAreaPreset {
+    return this.setPlantPreset(enabled ? 'ar_passthrough' : 'assembly_bay');
   }
 
   public setPlantPreset(presetId: string): PlantAreaPreset {

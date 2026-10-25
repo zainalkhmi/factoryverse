@@ -38,6 +38,9 @@ export class AssemblySystem extends createSystem({
     [0.65, 1.80, -1.7],   // Step 5: Inspection Panel & Audit
   ];
 
+  private isARPassthroughMode = false;
+  private benchObject: any = null;
+
   public setTrainingEngine(engine: TrainingEngine): void {
     this.trainingEngine = engine;
   }
@@ -48,6 +51,34 @@ export class AssemblySystem extends createSystem({
       this.guideViewObject.visible = this.isGuideViewVisible;
     }
     return this.isGuideViewVisible;
+  }
+
+  public setARPassthroughMode(enabled: boolean): boolean {
+    this.isARPassthroughMode = enabled;
+    if (!this.benchObject && this.world) {
+      this.benchObject = (this.world as any).scene?.getObjectByName('WorkstationBench');
+    }
+    if (this.benchObject) {
+      // In AR Passthrough mode, transform bench to a subtle alignment wireframe grid on physical desk
+      this.benchObject.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          if (enabled) {
+            child.material.transparent = true;
+            child.material.opacity = 0.28;
+            child.material.wireframe = true;
+          } else {
+            child.material.transparent = false;
+            child.material.opacity = 1.0;
+            child.material.wireframe = false;
+          }
+        }
+      });
+    }
+    return this.isARPassthroughMode;
+  }
+
+  public getARPassthroughMode(): boolean {
+    return this.isARPassthroughMode;
   }
 
   init(): void {

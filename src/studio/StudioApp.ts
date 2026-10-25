@@ -13,6 +13,7 @@ import { renderQualityInspectionView } from './views/QualityInspectionView';
 import { renderSessionReportsView } from './views/SessionReportsView';
 import { renderUserRolesView } from './views/UserRolesView';
 import { renderSettingsView } from './views/SettingsView';
+import { renderVuforiaStudioView } from './views/VuforiaStudioView';
 import { storageRepository } from '../storage/storage-repository';
 import type { ProcedureStep } from '../types';
 import type { TrainingEngine } from '../training/training-engine';
@@ -27,6 +28,8 @@ export class StudioApp {
   private trainingEngine?: TrainingEngine;
   private assemblySystem?: AssemblySystem;
   private isXRMode = false;
+  private isARPassthroughActive = false;
+  private arMediaStream: MediaStream | null = null;
 
   constructor() {}
 
@@ -40,12 +43,12 @@ export class StudioApp {
     this.navigateTo('dashboard');
   }
 
-  public navigateTo(viewId: string, param?: string): void {
+  public navigateTo(viewId: string, param?: string, mode?: 'vr' | 'ar'): void {
     this.currentView = viewId;
     this.viewParam = param;
 
     if (viewId === 'xr-player') {
-      this.enterXRPlayerMode(param);
+      this.enterXRPlayerMode(param, mode);
       return;
     }
 
@@ -54,7 +57,77 @@ export class StudioApp {
     this.renderCurrentView();
   }
 
-  private enterXRPlayerMode(procedureId?: string): void {
+  public toggleARPassthroughMode(forceState?: boolean): boolean {
+    const nextState = forceState !== undefined ? forceState : !this.isARPassthroughActive;
+    this.isARPassthroughActive = nextState;
+
+    const arVideo = document.getElementById('xr-passthrough-video') as HTMLVideoElement | null;
+    const arReticle = document.getElementById('xr-ar-reticle');
+    const arBadge = document.getElementById('xr-hud-ar-badge');
+    const toggleBtn = document.getElementById('xr-btn-hud-ar-toggle');
+    const envBtn = document.getElementById('xr-btn-hud-env');
+    const sceneContainer = document.getElementById('scene-container');
+
+    if (nextState) {
+      // Activate AR Passthrough Mixed Reality
+      plantEnvironmentService.setARPassthrough(true);
+      this.assemblySystem?.setARPassthroughMode(true);
+
+      if (arReticle) arReticle.style.display = 'block';
+      if (arBadge) arBadge.style.display = 'block';
+      if (toggleBtn) {
+        toggleBtn.textContent = '👓 Mode: AR Passthrough (ON)';
+        toggleBtn.className = 'btn btn-amber btn-sm';
+      }
+      if (envBtn) envBtn.textContent = '👓 AR Passthrough';
+
+      // Start live camera stream for desktop/mobile AR view
+      if (arVideo) {
+        navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
+          .then((stream) => {
+            this.arMediaStream = stream;
+            arVideo.srcObject = stream;
+            arVideo.style.display = 'block';
+          })
+          .catch(() => {
+            arVideo.style.display = 'none';
+          });
+      }
+
+      // Make Three.js canvas transparent so camera or reality shows through
+      if (sceneContainer) {
+        const canvas = sceneContainer.querySelector('canvas');
+        if (canvas) {
+          canvas.style.backgroundColor = 'transparent';
+        }
+      }
+    } else {
+      // Return to VR Plant Mode
+      plantEnvironmentService.setARPassthrough(false);
+      this.assemblySystem?.setARPassthroughMode(false);
+
+      if (arReticle) arReticle.style.display = 'none';
+      if (arBadge) arBadge.style.display = 'none';
+      if (toggleBtn) {
+        toggleBtn.textContent = '🥽 Mode: VR Plant (Bay 3)';
+        toggleBtn.className = 'btn btn-secondary btn-sm';
+      }
+      if (envBtn) envBtn.textContent = '🏭 Plant: Bay 3';
+
+      if (this.arMediaStream) {
+        this.arMediaStream.getTracks().forEach((track) => track.stop());
+        this.arMediaStream = null;
+      }
+      if (arVideo) {
+        arVideo.style.display = 'none';
+        arVideo.srcObject = null;
+      }
+    }
+
+    return this.isARPassthroughActive;
+  }
+
+  private enterXRPlayerMode(procedureId?: string, mode?: 'vr' | 'ar'): void {
     this.isXRMode = true;
     const xrOverlay = document.getElementById('xr-player-view');
     const studioLayout = document.getElementById('app-layout');
@@ -84,11 +157,18 @@ export class StudioApp {
       }
     }
 
+    if (mode === 'ar') {
+      this.toggleARPassthroughMode(true);
+    } else if (mode === 'vr') {
+      this.toggleARPassthroughMode(false);
+    }
+
     this.updateXRHUD();
   }
 
   public exitXRPlayerMode(): void {
     this.isXRMode = false;
+    this.toggleARPassthroughMode(false);
     const xrOverlay = document.getElementById('xr-player-view');
     const studioLayout = document.getElementById('app-layout');
     if (xrOverlay && studioLayout) {
@@ -128,6 +208,7 @@ export class StudioApp {
         editor: 'Visual Procedure Editor',
         capture: 'Expert Capture Workspace',
         models: '3D Model & CAD Catalog',
+        vuforia: 'Vuforia AR Experience Studio',
         inspection: 'Quality Inspection & Tolerances',
         reports: 'Training Session Reports & Audits',
         users: 'User & Role Management',
@@ -156,6 +237,9 @@ export class StudioApp {
         break;
       case 'capture':
         renderCaptureWorkspaceView(content, nav);
+        break;
+      case 'vuforia':
+        renderVuforiaStudioView(content, nav);
         break;
       case 'models':
         renderModelLibraryView(content, nav);
@@ -208,6 +292,9 @@ export class StudioApp {
           </div>
 
           <div class="nav-section-label">Engineering & QA</div>
+          <div class="nav-item" data-view="vuforia">
+            <span class="nav-icon">📐</span> Vuforia AR Studio
+          </div>
           <div class="nav-item" data-view="models">
             <span class="nav-icon">🧊</span> 3D Model Library
           </div>
@@ -230,10 +317,15 @@ export class StudioApp {
         <div class="sidebar-footer">
           <div class="mode-toggle-card">
             <h4>Meta Quest Training</h4>
-            <p>Ready to test in VR workstation mode</p>
-            <button id="sidebar-btn-launch-xr" class="btn btn-amber" style="width: 100%; justify-content: center;">
-              <span>🥽</span> Launch XR Workstation
-            </button>
+            <p>Spatial XR & Passthrough Mixed Reality</p>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button id="sidebar-btn-launch-xr" class="btn btn-secondary" style="width: 100%; justify-content: center;">
+                <span>🥽</span> Launch VR Plant Mode
+              </button>
+              <button id="sidebar-btn-launch-ar" class="btn btn-amber" style="width: 100%; justify-content: center;">
+                <span>👓</span> Launch AR Passthrough
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -251,10 +343,13 @@ export class StudioApp {
               Cloud Synced · Offline Cache Active
             </span>
             <button id="header-btn-scan-qr" class="btn btn-secondary btn-sm">
-              <span>📷</span> Scan Machine QR / VuMark
+              <span>📐</span> Vuforia AR & Equipment QR
             </button>
-            <button id="header-btn-quick-xr" class="btn btn-amber btn-sm">
-              <span>🥽</span> XR Workstation Mode
+            <button id="header-btn-quick-ar" class="btn btn-amber btn-sm">
+              <span>👓</span> AR Passthrough Mode
+            </button>
+            <button id="header-btn-quick-xr" class="btn btn-secondary btn-sm">
+              <span>🥽</span> VR Workstation
             </button>
           </div>
         </header>
@@ -274,16 +369,24 @@ export class StudioApp {
     });
 
     layout.querySelector('#sidebar-btn-launch-xr')?.addEventListener('click', () => {
-      this.navigateTo('xr-player', 'proc-hyd-cyl-01');
+      this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'vr');
+    });
+
+    layout.querySelector('#sidebar-btn-launch-ar')?.addEventListener('click', () => {
+      this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'ar');
     });
 
     layout.querySelector('#header-btn-quick-xr')?.addEventListener('click', () => {
-      this.navigateTo('xr-player', 'proc-hyd-cyl-01');
+      this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'vr');
+    });
+
+    layout.querySelector('#header-btn-quick-ar')?.addEventListener('click', () => {
+      this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'ar');
     });
 
     layout.querySelector('#header-btn-scan-qr')?.addEventListener('click', () => {
-      barcodeScannerService.openScannerModal((procId) => {
-        this.navigateTo('xr-player', procId);
+      barcodeScannerService.openScannerModal((procId, mode) => {
+        this.navigateTo('xr-player', procId, mode || 'ar');
       });
     });
 
@@ -292,6 +395,11 @@ export class StudioApp {
     xrExitBtn?.addEventListener('click', () => {
       this.exitXRPlayerMode();
       this.navigateTo('dashboard');
+    });
+
+    const xrARToggleBtn = document.getElementById('xr-btn-hud-ar-toggle');
+    xrARToggleBtn?.addEventListener('click', () => {
+      this.toggleARPassthroughMode();
     });
 
     const xrEnvBtn = document.getElementById('xr-btn-hud-env');
@@ -315,8 +423,8 @@ export class StudioApp {
 
     const xrScanBtn = document.getElementById('xr-btn-hud-scan');
     xrScanBtn?.addEventListener('click', () => {
-      barcodeScannerService.openScannerModal((procId) => {
-        this.navigateTo('xr-player', procId);
+      barcodeScannerService.openScannerModal((procId, mode) => {
+        this.navigateTo('xr-player', procId, mode || 'ar');
       });
     });
 
@@ -400,6 +508,10 @@ export class StudioApp {
             xrCadGuideBtn.className = visible ? 'btn btn-secondary btn-sm' : 'btn btn-danger btn-sm';
           }
         }
+      } else if (cmd === 'ar' || cmd === 'passthrough') {
+        this.toggleARPassthroughMode(true);
+      } else if (cmd === 'vr') {
+        this.toggleARPassthroughMode(false);
       } else if (cmd === 'environment' || cmd === 'plant' || cmd === 'location') {
         const next = plantEnvironmentService.cycleNextPreset();
         if (xrEnvBtn) xrEnvBtn.textContent = `🏭 ${next.name.slice(0, 16)}...`;

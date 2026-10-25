@@ -1,197 +1,300 @@
 {
-  "version": "iwsdk.scene.v1",
-  "units": "meters",
   "components": {
     "com.iwsdk.components.DomeGradient": {
-      "sky": [0.07, 0.11, 0.18, 1],
-      "equator": [0.09, 0.15, 0.22, 1],
-      "ground": [0.04, 0.07, 0.11, 1],
-      "elevationDeg": 30,
       "azimuthDeg": -40,
-      "dither": true
+      "dither": true,
+      "elevationDeg": 30,
+      "equator": [
+        0.09,
+        0.15,
+        0.22,
+        1
+      ],
+      "ground": [
+        0.04,
+        0.07,
+        0.11,
+        1
+      ],
+      "sky": [
+        0.07,
+        0.11,
+        0.18,
+        1
+      ]
     },
     "com.iwsdk.components.IBLGradient": {
-      "sky": [0.25, 0.35, 0.45, 1],
-      "equator": [0.2, 0.28, 0.36, 1],
-      "ground": [0.1, 0.14, 0.18, 1],
-      "intensity": 0.4
+      "equator": [
+        0.2,
+        0.28,
+        0.36,
+        1
+      ],
+      "ground": [
+        0.1,
+        0.14,
+        0.18,
+        1
+      ],
+      "intensity": 0.4,
+      "sky": [
+        0.25,
+        0.35,
+        0.45,
+        1
+      ]
     }
   },
   "environment": {
-    "toneMapping": "aces",
     "exposure": 1.15,
+    "shadowMapType": "pcf",
     "shadows": true,
-    "shadowMapType": "pcf"
+    "toneMapping": "aces"
   },
-  "resources": {},
   "nodes": [
     {
-      "id": "workstation-bench",
-      "name": "Industrial Assembly Bench",
-      "framingRole": "support",
       "content": {
-        "type": "asset",
         "asset": "workstation-bench",
         "castShadow": true,
-        "receiveShadow": true
+        "receiveShadow": true,
+        "type": "asset"
       },
+      "framingRole": "support",
+      "id": "workstation-bench",
+      "name": "Industrial Assembly Bench",
       "transform": {
-        "position": [0, 0, -1.1]
+        "position": [
+          0,
+          0,
+          -1.1
+        ]
       }
     },
     {
-      "id": "cylinder-barrel",
-      "name": "Cylinder Barrel Bore",
+      "components": {
+        "AssemblyPart": {
+          "isAssembled": true,
+          "partId": "barrel",
+          "stepOrder": 1
+        },
+        "RayInteractable": {}
+      },
       "content": {
-        "type": "asset",
         "asset": "cylinder-barrel",
         "castShadow": true,
-        "receiveShadow": true
+        "receiveShadow": true,
+        "type": "asset"
       },
+      "id": "cylinder-barrel",
+      "name": "Cylinder Barrel Bore",
       "transform": {
-        "position": [-0.45, 1.04, -1.1]
-      },
-      "components": {
-        "RayInteractable": {},
-        "AssemblyPart": {
-          "partId": "barrel",
-          "isAssembled": true,
-          "stepOrder": 1
-        }
+        "position": [
+          -0.45,
+          1.04,
+          -1.1
+        ]
       }
     },
     {
-      "id": "piston-rod",
-      "name": "Piston Rod & Head Assembly",
+      "components": {
+        "AssemblyPart": {
+          "isAssembled": false,
+          "partId": "piston_rod",
+          "stepOrder": 2
+        },
+        "DistanceGrabbable": {
+          "movementMode": "MoveFromTarget"
+        },
+        "RayInteractable": {}
+      },
       "content": {
-        "type": "asset",
         "asset": "piston-rod",
         "castShadow": true,
-        "receiveShadow": true
+        "receiveShadow": true,
+        "type": "asset"
       },
+      "id": "piston-rod",
+      "name": "Piston Rod & Head Assembly",
       "transform": {
-        "position": [0.35, 0.95, -1.0],
-        "rotationDeg": [0, 90, 0]
-      },
-      "components": {
-        "RayInteractable": {},
-        "DistanceGrabbable": {
-          "movementMode": "MoveFromTarget"
-        },
-        "AssemblyPart": {
-          "partId": "piston_rod",
-          "isAssembled": false,
-          "stepOrder": 2
-        }
+        "position": [
+          0.35,
+          0.95,
+          -1
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
       }
     },
     {
-      "id": "end-cap",
-      "name": "Threaded Gland End Cap",
+      "components": {
+        "AssemblyPart": {
+          "isAssembled": false,
+          "partId": "end_cap",
+          "stepOrder": 3
+        },
+        "DistanceGrabbable": {
+          "movementMode": "MoveFromTarget"
+        },
+        "RayInteractable": {}
+      },
       "content": {
-        "type": "asset",
         "asset": "end-cap",
         "castShadow": true,
-        "receiveShadow": true
+        "receiveShadow": true,
+        "type": "asset"
       },
+      "id": "end-cap",
+      "name": "Threaded Gland End Cap",
       "transform": {
-        "position": [0.65, 0.95, -1.0]
-      },
-      "components": {
-        "RayInteractable": {},
-        "DistanceGrabbable": {
-          "movementMode": "MoveFromTarget"
-        },
-        "AssemblyPart": {
-          "partId": "end_cap",
-          "isAssembled": false,
-          "stepOrder": 3
-        }
+        "position": [
+          0.65,
+          0.95,
+          -1
+        ],
+        "rotationDeg": [
+          0,
+          43.877,
+          0
+        ],
+        "scale": 1
       }
     },
     {
+      "content": {
+        "asset": "spatial-beacon",
+        "type": "asset"
+      },
       "id": "spatial-beacon",
       "name": "Spatial Wayfinding Beacon",
-      "content": {
-        "type": "asset",
-        "asset": "spatial-beacon"
-      },
       "transform": {
-        "position": [0.35, 1.25, -1.0]
+        "position": [
+          0.35,
+          1.25,
+          -1
+        ]
       }
     },
     {
+      "content": {
+        "asset": "cad-guide-view",
+        "type": "asset"
+      },
       "id": "cad-guide-view",
       "name": "CAD Model Target Guide View",
-      "content": {
-        "type": "asset",
-        "asset": "cad-guide-view"
-      },
       "transform": {
-        "position": [0, 0, 0]
+        "position": [
+          0,
+          0,
+          0
+        ]
       }
     },
     {
+      "components": {
+        "RayInteractable": {}
+      },
+      "content": {
+        "asset": "training-panel",
+        "type": "asset"
+      },
       "id": "training-panel",
       "name": "Spatial Training Panel",
-      "content": {
-        "type": "asset",
-        "asset": "training-panel"
-      },
       "transform": {
-        "position": [-0.25, 1.62, -1.75],
-        "rotationDeg": [-4, 6, 0],
+        "position": [
+          -0.25,
+          1.62,
+          -1.75
+        ],
+        "rotationDeg": [
+          -4,
+          6,
+          0
+        ],
         "scale": 0.44
-      },
-      "components": {
-        "RayInteractable": {}
       }
     },
     {
+      "components": {
+        "RayInteractable": {}
+      },
+      "content": {
+        "asset": "inspection-panel",
+        "type": "asset"
+      },
       "id": "inspection-panel",
       "name": "Spatial Inspection Panel",
-      "content": {
-        "type": "asset",
-        "asset": "inspection-panel"
-      },
       "transform": {
-        "position": [0.65, 1.58, -1.7],
-        "rotationDeg": [-4, -12, 0],
+        "position": [
+          0.65,
+          1.58,
+          -1.7
+        ],
+        "rotationDeg": [
+          -4,
+          -12,
+          0
+        ],
         "scale": 0.44
-      },
-      "components": {
-        "RayInteractable": {}
       }
     },
     {
+      "components": {
+        "DirectionalLight": {
+          "castShadow": true,
+          "color": [
+            1,
+            0.96,
+            0.92,
+            1
+          ],
+          "intensity": 2.6,
+          "shadowCameraFar": 8,
+          "shadowCameraNear": 0.5,
+          "shadowCameraSize": 3.5,
+          "shadowMapSize": "2048"
+        }
+      },
       "id": "key-light",
       "name": "Studio Key Light",
       "transform": {
-        "position": [1.5, 3.2, 0.5],
-        "rotationDeg": [-55, 30, 0]
-      },
-      "components": {
-        "DirectionalLight": {
-          "color": [1, 0.96, 0.92, 1],
-          "intensity": 2.6,
-          "castShadow": true,
-          "shadowMapSize": "2048",
-          "shadowCameraSize": 3.5,
-          "shadowCameraNear": 0.5,
-          "shadowCameraFar": 8
-        }
+        "position": [
+          1.5,
+          3.2,
+          0.5
+        ],
+        "rotationDeg": [
+          -55,
+          30,
+          0
+        ]
       }
     },
     {
-      "id": "fill-light",
-      "name": "Fill Light",
       "components": {
         "HemisphereLight": {
-          "skyColor": [0.55, 0.7, 0.85, 1],
-          "groundColor": [0.15, 0.2, 0.25, 1],
-          "intensity": 1.4
+          "groundColor": [
+            0.15,
+            0.2,
+            0.25,
+            1
+          ],
+          "intensity": 1.4,
+          "skyColor": [
+            0.55,
+            0.7,
+            0.85,
+            1
+          ]
         }
-      }
+      },
+      "id": "fill-light",
+      "name": "Fill Light"
     }
-  ]
+  ],
+  "resources": {},
+  "units": "meters",
+  "version": "iwsdk.scene.v1"
 }

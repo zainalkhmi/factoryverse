@@ -6,8 +6,8 @@ describe('PlantEnvironmentService (Vuforia ATG & Target Manager Parity)', () => 
 
   it('should list all predefined industrial plant area presets', () => {
     const presets = service.getPlantPresets();
-    expect(presets.length).toBe(3);
-    expect(presets.map((p) => p.id)).toEqual(['assembly_bay', 'cnc_floor', 'cleanroom']);
+    expect(presets.length).toBe(4);
+    expect(presets.map((p) => p.id)).toEqual(['assembly_bay', 'cnc_floor', 'cleanroom', 'ar_passthrough']);
   });
 
   it('should switch and cycle plant area presets correctly', () => {
@@ -19,6 +19,16 @@ describe('PlantEnvironmentService (Vuforia ATG & Target Manager Parity)', () => 
     const next = service.cycleNextPreset();
     expect(next.id).toBe('cleanroom');
     expect(service.getActivePreset().lightingTone).toContain('Sterile Daylight');
+  });
+
+  it('should toggle AR Passthrough mode correctly', () => {
+    service.setARPassthrough(true);
+    expect(service.isARPassthroughActive()).toBe(true);
+    expect(service.getActivePreset().code).toBe('PLANT-AR-MR');
+
+    service.setARPassthrough(false);
+    expect(service.isARPassthroughActive()).toBe(false);
+    expect(service.getActivePreset().id).toBe('assembly_bay');
   });
 
   it('should generate a comprehensive target database package with models and equipment', () => {
