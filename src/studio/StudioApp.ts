@@ -40,12 +40,21 @@ export class StudioApp {
 
   public mount(): void {
     this.renderLayout();
-    this.navigateTo('dashboard');
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+    this.navigateTo(hash || 'vuforia');
   }
 
   public navigateTo(viewId: string, param?: string, mode?: 'vr' | 'ar'): void {
     this.currentView = viewId;
     this.viewParam = param;
+
+    if (typeof window !== 'undefined' && viewId !== 'xr-player') {
+      try {
+        window.location.hash = viewId;
+      } catch {
+        // ignore in headless
+      }
+    }
 
     if (viewId === 'xr-player') {
       this.enterXRPlayerMode(param, mode);
@@ -196,9 +205,31 @@ export class StudioApp {
   private updateSidebarActive(viewId: string): void {
     document.querySelectorAll('.nav-item').forEach((item) => {
       const target = item.getAttribute('data-view');
-      if (target === viewId) item.classList.add('active');
-      else item.classList.remove('active');
+      if (target === viewId) {
+        item.classList.add('active');
+        (item as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      } else {
+        item.classList.remove('active');
+      }
     });
+
+    const subheader = document.getElementById('view-subheader');
+    const content = document.getElementById('view-content');
+
+    // Vuforia Studio uses full-bleed layout with its own dedicated top ribbon (matching Image 2)
+    if (viewId === 'vuforia') {
+      if (subheader) subheader.style.display = 'none';
+      if (content) {
+        content.style.padding = '0';
+        content.style.overflow = 'hidden';
+      }
+    } else {
+      if (subheader) subheader.style.display = 'flex';
+      if (content) {
+        content.style.padding = '24px';
+        content.style.overflowY = 'auto';
+      }
+    }
 
     const heading = document.getElementById('view-heading');
     if (heading) {
@@ -266,91 +297,86 @@ export class StudioApp {
     if (!layout) return;
 
     layout.innerHTML = `
-      <!-- Studio Sidebar -->
-      <aside class="studio-sidebar">
-        <div class="sidebar-header">
+      <!-- Top Navbar (MES CORE / FactoryVerse Topbar Style) -->
+      <header class="studio-top-navbar">
+        <div class="topbar-left">
           <div class="brand-badge">FV</div>
-          <div>
-            <div class="brand-title">FactoryVerse</div>
-            <div class="brand-subtitle">Expert XR Platform</div>
+          <div class="brand-info">
+            <span class="brand-title">FactoryVerse</span>
+            <span class="brand-subtitle">EXPERT XR</span>
           </div>
         </div>
 
-        <nav class="sidebar-nav">
-          <div class="nav-section-label">Operations</div>
+        <nav class="topbar-nav">
           <div class="nav-item" data-view="dashboard">
-            <span class="nav-icon">📊</span> Dashboard
+            <span class="nav-icon">📊</span> <span>Dashboard</span>
           </div>
           <div class="nav-item" data-view="procedures">
-            <span class="nav-icon">📋</span> Procedure Library
+            <span class="nav-icon">📋</span> <span>Procedures</span>
           </div>
           <div class="nav-item" data-view="editor">
-            <span class="nav-icon">✏️</span> Visual Editor
+            <span class="nav-icon">✏️</span> <span>Editor</span>
           </div>
           <div class="nav-item" data-view="capture">
-            <span class="nav-icon">⏺</span> Expert Capture
+            <span class="nav-icon">⏺</span> <span>Capture</span>
           </div>
-
-          <div class="nav-section-label">Engineering & QA</div>
-          <div class="nav-item" data-view="vuforia">
-            <span class="nav-icon">📐</span> Vuforia AR Studio
+          <div class="nav-item active" data-view="vuforia">
+            <span class="nav-icon">📐</span> <span>Vuforia Studio</span>
           </div>
           <div class="nav-item" data-view="models">
-            <span class="nav-icon">🧊</span> 3D Model Library
+            <span class="nav-icon">🧊</span> <span>Models</span>
           </div>
           <div class="nav-item" data-view="inspection">
-            <span class="nav-icon">🔍</span> Quality Inspection
+            <span class="nav-icon">🔍</span> <span>Inspection</span>
           </div>
           <div class="nav-item" data-view="reports">
-            <span class="nav-icon">📑</span> Session Reports
+            <span class="nav-icon">📑</span> <span>Reports</span>
           </div>
-
-          <div class="nav-section-label">Administration</div>
           <div class="nav-item" data-view="users">
-            <span class="nav-icon">👥</span> Users & Roles
+            <span class="nav-icon">👥</span> <span>Users</span>
           </div>
           <div class="nav-item" data-view="settings">
-            <span class="nav-icon">⚙️</span> Settings & Adapters
+            <span class="nav-icon">⚙️</span> <span>Settings</span>
           </div>
         </nav>
 
-        <div class="sidebar-footer">
-          <div class="mode-toggle-card">
-            <h4>Meta Quest Training</h4>
-            <p>Spatial XR & Passthrough Mixed Reality</p>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <button id="sidebar-btn-launch-xr" class="btn btn-secondary" style="width: 100%; justify-content: center;">
-                <span>🥽</span> Launch VR Plant Mode
-              </button>
-              <button id="sidebar-btn-launch-ar" class="btn btn-amber" style="width: 100%; justify-content: center;">
-                <span>👓</span> Launch AR Passthrough
-              </button>
-            </div>
+        <div class="topbar-right">
+          <span class="status-chip-live" title="Plant Telemetry ONLINE">
+            <span class="status-pulse-dot"></span>
+            Live
+          </span>
+          <button id="header-btn-scan-qr" class="btn btn-secondary btn-sm" title="Vuforia Optical Marker & QR Scanner" style="padding: 4px 8px; font-size: 11px;">
+            <span>📐</span> Scanner
+          </button>
+          <button id="header-btn-quick-ar" class="btn btn-amber btn-sm" title="Preview in AR Passthrough Mode" style="padding: 4px 8px; font-size: 11px;">
+            <span>👓</span> AR Passthrough
+          </button>
+          <button id="header-btn-quick-xr" class="btn btn-secondary btn-sm" title="Launch in XR Workstation Mode" style="padding: 4px 8px; font-size: 11px;">
+            <span>🥽</span> VR Workstation
+          </button>
+          <button id="header-btn-export-pkg" class="btn btn-secondary btn-sm" title="Export Vuforia Target Database Package" style="padding: 4px 8px; font-size: 11px;">
+            <span>💾</span> Export DB
+          </button>
+          <div class="user-profile-badge" title="Logged in as System Admin">
+            <span class="user-avatar">S</span>
+            <span class="user-name" style="font-size: 11px;">Admin</span>
           </div>
         </div>
-      </aside>
+      </header>
 
       <!-- Main Studio Viewport -->
       <main class="studio-main">
-        <header class="studio-header">
+        <!-- Subheader for standard views -->
+        <header id="view-subheader" class="studio-header" style="height: 46px; min-height: 46px; padding: 0 20px;">
           <div class="header-left">
-            <h1 id="view-heading" class="view-heading">Executive Dashboard</h1>
+            <h1 id="view-heading" class="view-heading" style="font-size: 15px;">Executive Dashboard</h1>
             <span class="breadcrumb-tag">Meta VR Start 2026</span>
           </div>
           <div class="header-actions">
-            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); color: #4ade80; padding: 5px 10px; border-radius: 4px;">
-              <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
-              Cloud Synced · Offline Cache Active
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); color: #4ade80; padding: 3px 8px; border-radius: 4px;">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
+              Cloud Synced · Cache Active
             </span>
-            <button id="header-btn-scan-qr" class="btn btn-secondary btn-sm">
-              <span>📐</span> Vuforia AR & Equipment QR
-            </button>
-            <button id="header-btn-quick-ar" class="btn btn-amber btn-sm">
-              <span>👓</span> AR Passthrough Mode
-            </button>
-            <button id="header-btn-quick-xr" class="btn btn-secondary btn-sm">
-              <span>🥽</span> VR Workstation
-            </button>
           </div>
         </header>
 
@@ -360,20 +386,12 @@ export class StudioApp {
       </main>
     `;
 
-    // Bind sidebar navigation items
+    // Bind navigation items
     layout.querySelectorAll('.nav-item').forEach((item) => {
       item.addEventListener('click', (e) => {
         const view = (e.currentTarget as HTMLElement).getAttribute('data-view');
         if (view) this.navigateTo(view);
       });
-    });
-
-    layout.querySelector('#sidebar-btn-launch-xr')?.addEventListener('click', () => {
-      this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'vr');
-    });
-
-    layout.querySelector('#sidebar-btn-launch-ar')?.addEventListener('click', () => {
-      this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'ar');
     });
 
     layout.querySelector('#header-btn-quick-xr')?.addEventListener('click', () => {
@@ -382,6 +400,11 @@ export class StudioApp {
 
     layout.querySelector('#header-btn-quick-ar')?.addEventListener('click', () => {
       this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'ar');
+    });
+
+    layout.querySelector('#header-btn-export-pkg')?.addEventListener('click', () => {
+      plantEnvironmentService.downloadTargetDatabaseJSON();
+      alert('Target Database Package exported successfully as "factoryverse-target-database.json"!');
     });
 
     layout.querySelector('#header-btn-scan-qr')?.addEventListener('click', () => {

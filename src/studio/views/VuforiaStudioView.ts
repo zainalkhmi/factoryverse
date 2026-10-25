@@ -124,6 +124,9 @@ export function renderVuforiaStudioView(
   let activeTool: 'select' | 'move' | 'rotate' | 'scale' = 'move';
   let isAutoRefreshActive = true;
   let toastMessage = '';
+  let activeLeftTab: 'screens' | 'records' = 'screens';
+  let activeRightTab: 'widget' | 'model' | 'iot' = 'widget';
+  let canvasZoomPercent = 100;
 
   // Real-time IoT Machine Telemetry Stream (ThingWorx / OPC-UA Parity)
   const telemetry = {
@@ -173,6 +176,8 @@ export function renderVuforiaStudioView(
       camRadius = 1.6;
     }
     updateCameraPosition();
+    container.querySelectorAll('.vf-cam-btn').forEach((b) => b.classList.remove('active'));
+    container.querySelector(`#vf-btn-cam-${preset}`)?.classList.add('active');
   };
 
   const getSelectedAugmentation = (): VuforiaAugmentation | undefined => {
@@ -275,359 +280,491 @@ export function renderVuforiaStudioView(
     const selectedAug = getSelectedAugmentation();
 
     container.innerHTML = `
-      <!-- Vuforia Studio Top Application Bar -->
-      <div style="display: flex; justify-content: space-between; align-items: center; background: #0c1524; border-bottom: 1px solid #1e3a5f; padding: 10px 18px; margin: -24px -24px 0 -24px;">
-        <div style="display: flex; align-items: center; gap: 14px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 20px;">📐</span>
-            <div>
-              <span style="font-size: 11px; font-weight: 700; color: #38bdf8; letter-spacing: 0.5px; text-transform: uppercase;">PTC Vuforia Studio Parity</span>
-              <h2 style="font-size: 15px; font-weight: 700; color: #fff; margin: 0;">Experience Authoring Canvas: ${activeModel.name}</h2>
-            </div>
-          </div>
-          <span style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
-            ● MODEL TARGET LOCKED (99.4%)
-          </span>
-          ${toastMessage ? `<span style="font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.4);">${toastMessage}</span>` : ''}
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <button id="vf-btn-preview-ar" class="btn btn-amber btn-sm">
-            <span>👓</span> Preview in AR Passthrough
-          </button>
-          <button id="vf-btn-launch-xr" class="btn btn-secondary btn-sm">
-            <span>🥽</span> Launch in XR Workstation
-          </button>
-          <button id="vf-btn-export-pkg" class="btn btn-secondary btn-sm">
-            <span>💾</span> Export Target DB
-          </button>
-        </div>
-      </div>
-
-      <!-- Vuforia Studio 4-Column Workspace -->
-      <div style="display: grid; grid-template-columns: 210px 190px 1fr 310px; height: calc(100vh - 128px); margin: 0 -24px -24px -24px; background: #070d17;">
+      <div style="display: flex; flex-direction: column; height: calc(100vh - 52px); width: 100%; background: #070d17; overflow: hidden;">
         
-        <!-- COLUMN 1: PROJECT TREE -->
-        <div style="background: #09111c; border-right: 1px solid #1e3a5f; display: flex; flex-direction: column; overflow-y: auto;">
-          <div style="padding: 10px 14px; background: #0c1726; border-bottom: 1px solid #1e3a5f; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
-            PROJECT
-          </div>
-          <div style="padding: 10px 12px; font-size: 12px; color: #cbd5e1;">
-            <!-- Configuration Section -->
-            <div style="margin-bottom: 12px;">
-              <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">▾ CONFIGURATION</div>
-              <div style="padding-left: 12px; display: flex; flex-direction: column; gap: 4px; color: #94a3b8; font-size: 11px;">
-                <div style="cursor: pointer;">Themes (Industrial Dark)</div>
-                <div style="cursor: pointer;">Experiences (Assembly & QA)</div>
-                <div style="cursor: pointer;">Project Info</div>
-                <div style="cursor: pointer; color: #facc15;">My ThingMarks (${augmentations.filter(a => a.type === 'thingmark').length})</div>
-              </div>
-            </div>
-
-            <!-- Views Hierarchy Tree -->
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">
-                <span>▾ VIEWS</span>
-                <span id="vf-btn-add-aug-tree" style="font-size: 14px; cursor: pointer; color: #38bdf8;" title="Add 3D Augmentation">+</span>
-              </div>
-              
-              <div style="padding-left: 8px; display: flex; flex-direction: column; gap: 3px; font-size: 11px;">
-                <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #fff;">
-                  <span>▾ 📱 Home</span>
-                </div>
-                <div style="padding-left: 14px; color: #64748b; font-size: 10px;">Home.js (Spatial Controller)</div>
-
-                <div style="padding-left: 14px; margin-top: 4px;">
-                  <div style="display: flex; align-items: center; gap: 6px; color: #38bdf8; font-weight: 600;">
-                    <span>▾ 🧊 3D Container</span>
-                  </div>
-
-                  <div style="padding-left: 14px; margin-top: 3px; display: flex; flex-direction: column; gap: 4px;">
-                    <div class="vf-tree-item ${selectedElementId === 'model-1' ? 'active' : ''}" data-id="model-1" style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: ${selectedElementId === 'model-1' ? '#38bdf8' : '#cbd5e1'};">
-                      <span>▾ ⚙️ model-1 (${activeModel.name.slice(0, 16)}...)</span>
-                    </div>
-
-                    <!-- Dynamic 3D Augmentations in Tree -->
-                    <div style="padding-left: 14px; display: flex; flex-direction: column; gap: 3px;">
-                      ${augmentations
-                        .map((aug) => {
-                          const isSel = aug.id === selectedElementId;
-                          const icon =
-                            aug.type === '3dlabel'
-                              ? '🏷️'
-                              : aug.type === '3dgauge'
-                              ? '⏱️'
-                              : aug.type === 'thingmark'
-                              ? '🎯'
-                              : '📍';
-                          return `
-                            <div class="vf-tree-item" data-id="${aug.id}" style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: ${isSel ? '#38bdf8' : '#94a3b8'}; font-weight: ${isSel ? '700' : '400'}; padding: 2px 4px; border-radius: 3px; background: ${isSel ? 'rgba(56, 189, 248, 0.12)' : 'transparent'};">
-                              <span>${icon}</span>
-                              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${aug.name}</span>
-                            </div>
-                          `;
-                        })
-                        .join('')}
-                    </div>
-                  </div>
+        <!-- TOP LEVEL 2: HORIZONTAL ACTION & WIDGETS RIBBON TOOLBAR (Image 2 style) -->
+        <div class="vf-top-ribbon">
+          <!-- Row 1: Experience Header & Right Actions -->
+          <div class="vf-ribbon-row-1">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button id="vf-btn-add-screen-target" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000; font-weight: 700; padding: 4px 12px; gap: 6px;">
+                <span>+</span> Add Target
+              </button>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">📐</span>
+                <div>
+                  <span style="font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">PTC Vuforia Studio · AR Authoring</span>
+                  <div style="font-size: 13px; font-weight: 700; color: #fff;">Modular Heavy-Duty Hydraulic Cylinder (${activeModel.name})</div>
                 </div>
               </div>
+              <span style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
+                ● MODEL TARGET LOCKED (99.4%)
+              </span>
+              ${toastMessage ? `<span id="vf-toast-msg" style="font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.4);">${toastMessage}</span>` : ''}
             </div>
           </div>
-        </div>
 
-        <!-- COLUMN 2: WIDGETS TOOLBOX -->
-        <div style="background: #09111c; border-right: 1px solid #1e3a5f; display: flex; flex-direction: column; overflow-y: auto;">
-          <div style="padding: 10px 14px; background: #0c1726; border-bottom: 1px solid #1e3a5f; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
-            WIDGETS TOOLBOX
-          </div>
+          <!-- Row 2: HORIZONTAL WIDGETS TOOLBOX RIBBON (Centered Big Icon Toolbar) -->
+          <div class="vf-ribbon-row-2">
+            <div class="vf-widget-ribbon">
+              <!-- TARGETS (Cyan Tinted) -->
+              <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="model_target" title="PTC Model Target (CAD Optical Tracking)">
+                <span>📐</span>
+              </button>
+              <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="thingmark" title="ThingMark / VuMark Optical Anchor">
+                <span>🎯</span>
+              </button>
+              <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="spatial_target" title="Spatial Surface SLAM Tracking">
+                <span>🌐</span>
+              </button>
 
-          <div style="padding: 10px 12px; font-size: 12px;">
-            <!-- TARGETS Group -->
-            <div style="margin-bottom: 14px;">
-              <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">▾ TARGETS</div>
-              <div style="display: flex; flex-direction: column; gap: 3px;">
-                <div class="vf-widget-add btn btn-secondary btn-sm" data-widget="model_target" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; width: 100%; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">
-                  <span>📐</span> <span>Model Target</span>
-                </div>
-                <div class="vf-widget-add btn btn-secondary btn-sm" data-widget="thingmark" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; width: 100%;">
-                  <span>🎯</span> <span>ThingMark / VuMark</span>
-                </div>
-                <div class="vf-widget-add btn btn-secondary btn-sm" data-widget="spatial_target" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; width: 100%;">
-                  <span>🌐</span> <span>Spatial Surface</span>
-                </div>
-              </div>
-            </div>
+              <span style="width: 1px; height: 18px; background: #1e3a5f; margin: 0 4px; flex-shrink: 0;"></span>
 
-            <!-- AUGMENTATIONS Group (Click to Add into Scene) -->
-            <div style="margin-bottom: 14px;">
-              <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">▾ AUGMENTATIONS (CLICK TO ADD)</div>
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <button class="vf-widget-add btn btn-secondary btn-sm" data-widget="3dlabel" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; width: 100%;">
-                  <span>🏷️</span> <span>+ 3D Label</span>
-                </button>
-                <button class="vf-widget-add btn btn-secondary btn-sm" data-widget="3dgauge" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; width: 100%;">
-                  <span>⏱️</span> <span>+ 3D Gauge (IoT)</span>
-                </button>
-                <button class="vf-widget-add btn btn-secondary btn-sm" data-widget="spatial_pin" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; width: 100%;">
-                  <span>📍</span> <span>+ 3D Spatial Pin</span>
-                </button>
-                <button class="vf-widget-add btn btn-secondary btn-sm" data-widget="3dimage" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; width: 100%;">
-                  <span>🖼️</span> <span>+ 3D Image Callout</span>
-                </button>
-              </div>
-            </div>
+              <!-- 3D ANNOTATIONS & MARKERS -->
+              <button class="vf-widget-add vf-widget-card-btn" data-widget="3dlabel" title="3D Datum & Annotation Label">
+                <span>🏷️</span>
+              </button>
+              <button class="vf-widget-add vf-widget-card-btn" data-widget="3dgauge" title="3D Sensor Gauge (Live IoT)">
+                <span>⏱️</span>
+              </button>
+              <button class="vf-widget-add vf-widget-card-btn" data-widget="spatial_pin" title="Spatial Waypoint Pin">
+                <span>📍</span>
+              </button>
+              <button class="vf-widget-add vf-widget-card-btn" data-widget="3dimage" title="3D Exploded Diagram Callout">
+                <span>🖼️</span>
+              </button>
+              <button class="vf-widget-add vf-widget-card-btn" data-widget="tml_text" title="TML / SOP Step Card">
+                <span>📝</span>
+              </button>
 
-            <!-- OTHER Group -->
-            <div>
-              <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">▾ OTHER & 2D</div>
-              <div style="display: flex; flex-direction: column; gap: 3px;">
-                <button class="vf-widget-add btn btn-secondary btn-sm" data-widget="tml_text" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; width: 100%;">
-                  <span>📝</span> <span>TML / SOP Card</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+              <span style="width: 1px; height: 18px; background: #1e3a5f; margin: 0 4px; flex-shrink: 0;"></span>
 
-        <!-- COLUMN 3: REAL 3D CANVAS & VIEWPORT -->
-        <div style="position: relative; display: flex; flex-direction: column; background: #03070d; overflow: hidden;">
-          <!-- Canvas Top Toolbar -->
-          <div style="background: #09111c; border-bottom: 1px solid #1e3a5f; padding: 6px 14px; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-right: 6px;">CANVAS</span>
-              <!-- Gizmo Mode Selection -->
-              <button class="vf-tool-btn btn ${activeTool === 'select' ? 'btn-primary' : 'btn-secondary'} btn-sm" data-tool="select" style="padding: 3px 8px; font-size: 11px;">↖ Select</button>
-              <button class="vf-tool-btn btn ${activeTool === 'move' ? 'btn-primary' : 'btn-secondary'} btn-sm" data-tool="move" style="padding: 3px 8px; font-size: 11px;">✛ Move</button>
-              <button class="vf-tool-btn btn ${activeTool === 'rotate' ? 'btn-primary' : 'btn-secondary'} btn-sm" data-tool="rotate" style="padding: 3px 8px; font-size: 11px;">↻ Rotate</button>
-              <button class="vf-tool-btn btn ${activeTool === 'scale' ? 'btn-primary' : 'btn-secondary'} btn-sm" data-tool="scale" style="padding: 3px 8px; font-size: 11px;">⤢ Scale</button>
-            </div>
-
-            <!-- Viewport Camera Presets & Options -->
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <button id="vf-btn-cam-iso" class="btn ${activePerspective === 'iso' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 3px 8px; font-size: 11px;">Isometric</button>
-              <button id="vf-btn-cam-front" class="btn ${activePerspective === 'front' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 3px 8px; font-size: 11px;">Front</button>
-              <button id="vf-btn-cam-top" class="btn ${activePerspective === 'top' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 3px 8px; font-size: 11px;">Top</button>
-              <button id="vf-btn-wireframe" class="btn ${isWireframeActive ? 'btn-amber' : 'btn-secondary'} btn-sm" style="padding: 3px 8px; font-size: 11px;">
-                ${isWireframeActive ? '📐 CAD Wireframe (ON)' : '📐 Shaded (OFF)'}
+              <!-- INSPECTION & IOT INTELLIGENCE -->
+              <button class="vf-widget-add vf-widget-card-btn" data-widget="qc_tolerance" title="QC Tolerance Inspection Datum">
+                <span>🔍</span>
+              </button>
+              <button class="vf-widget-add vf-widget-card-btn" data-widget="sensor_chart" title="Telemetry Sparkline Chart">
+                <span>📊</span>
+              </button>
+              <button class="vf-widget-add vf-widget-card-btn" data-widget="digital_twin" title="ThingWorx Digital Twin Synchronizer">
+                <span>⚡</span>
               </button>
             </div>
           </div>
-
-          <!-- Real WebGL Three.js Viewport Container -->
-          <div id="vf-three-container" style="flex: 1; position: relative; width: 100%; height: 100%; cursor: grab;">
-            <canvas id="vf-three-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block;"></canvas>
-            
-            <!-- Floating HTML Augmentations Overlay Layer -->
-            <div id="vf-html-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden;"></div>
-
-            <!-- Optical Model Target Framing Brackets (Vuforia Alignment Overlay) -->
-            <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <path d="M 6 12 L 3 12 L 3 20" stroke="#38bdf8" stroke-width="0.8" fill="none" opacity="0.8" />
-              <path d="M 94 12 L 97 12 L 97 20" stroke="#38bdf8" stroke-width="0.8" fill="none" opacity="0.8" />
-              <path d="M 6 88 L 3 88 L 3 80" stroke="#38bdf8" stroke-width="0.8" fill="none" opacity="0.8" />
-              <path d="M 94 88 L 97 88 L 97 80" stroke="#38bdf8" stroke-width="0.8" fill="none" opacity="0.8" />
-            </svg>
-
-            <!-- Coordinate Axes Legend in bottom-left -->
-            <div style="position: absolute; bottom: 12px; left: 16px; font-family: monospace; font-size: 10px; font-weight: 700; background: rgba(10, 16, 26, 0.85); padding: 4px 8px; border-radius: 4px; border: 1px solid #1e3a5f; pointer-events: none;">
-              <span style="color: #ef4444;">— X</span> · <span style="color: #22c55e;">— Y (Up)</span> · <span style="color: #38bdf8;">— Z</span> · Orbit: Drag Mouse | Zoom: Scroll
-            </div>
-          </div>
-
-          <!-- Bottom Viewport Telemetry Bar -->
-          <div style="background: #09111c; border-top: 1px solid #1e3a5f; padding: 6px 16px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
-            <span>Selected Element: <strong style="color: #38bdf8;">${selectedAug ? selectedAug.name : 'None'}</strong> · Total Augmentations: ${augmentations.length}</span>
-            <span style="font-family: monospace; color: #4ade80;">● ThingWorx IoT Live Telemetry Stream: ONLINE</span>
-          </div>
         </div>
 
-        <!-- COLUMN 4: MODEL · DETAILS & PROPERTIES (ThingWorx Data Bindings) -->
-        <div style="background: #09111c; border-left: 1px solid #1e3a5f; display: flex; flex-direction: column; overflow-y: auto;">
-          <div style="padding: 10px 14px; background: #0c1726; border-bottom: 1px solid #1e3a5f; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;">
-            <span>MODEL · DETAILS</span>
-            ${selectedAug ? `<button id="vf-btn-remove-selected" style="background: transparent; border: none; color: #f43f5e; font-size: 11px; font-weight: 700; cursor: pointer;">✕ Remove</button>` : ''}
-          </div>
-
-          <div style="padding: 14px 16px; font-size: 12px;">
-            <!-- PROPERTIES Group -->
-            <div style="margin-bottom: 16px;">
-              <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 10px;">▾ PROPERTIES</div>
-              
-              <div style="margin-bottom: 10px;">
-                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">→) CAD Model Resource</label>
-                <select id="vf-select-resource" class="form-select" style="font-size: 11px; padding: 4px 8px; width: 100%;">
-                  ${models
-                    .map(
-                      (m, idx) => `
-                    <option value="${idx}" ${idx === activeModelIndex ? 'selected' : ''}>
-                      ${m.name} (${m.format.toUpperCase()})
-                    </option>
-                  `
-                    )
-                    .join('')}
-                </select>
+        <!-- 3-COLUMN WORKSPACE BODY: LEFT PROJECT TREE | CENTER 3D VIEWPORT | RIGHT INSPECTOR -->
+        <div style="display: grid; grid-template-columns: 260px 1fr 340px; flex: 1; min-height: 0; background: #070d17;">
+          
+          <!-- COLUMN 1: PROJECT TREE / VIEWS & SCREENS (Left Panel) -->
+          <div style="background: #09111c; border-right: 1px solid #1e3a5f; display: flex; flex-direction: column; overflow: hidden;">
+            <!-- Tab Header (Matching Image 2 SCREENS / RECORDS) -->
+            <div class="vf-tab-bar">
+              <div class="vf-left-tab-btn vf-tab-item ${activeLeftTab === 'screens' ? 'active' : ''}" data-tab="screens">
+                SCREENS / VIEWS
               </div>
+              <div class="vf-left-tab-btn vf-tab-item ${activeLeftTab === 'records' ? 'active' : ''}" data-tab="records">
+                RECORDS / CAD
+              </div>
+            </div>
 
+            <div style="flex: 1; overflow-y: auto; padding: 12px;">
               ${
-                selectedAug
+                activeLeftTab === 'screens'
                   ? `
-                <div style="margin-bottom: 10px;">
-                  <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">Augmentation Label / Title</label>
-                  <input id="vf-input-label" type="text" class="form-input" value="${selectedAug.label}" style="font-size: 11px; padding: 4px 8px;" />
-                </div>
-
-                <div style="margin-bottom: 10px;">
-                  <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">→) Scale</label>
-                  <input id="vf-input-scale" type="number" step="0.1" min="0.2" max="3" class="form-input" value="${selectedAug.scale}" style="font-size: 11px; padding: 4px 8px;" />
-                </div>
-
-                <!-- 6DOF Spatial Coordinates -->
-                <div style="margin-bottom: 10px;">
-                  <div style="font-size: 11px; color: #94a3b8; margin-bottom: 3px;">3D Position (Meters)</div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
-                    <div>
-                      <label style="font-size: 10px; color: #64748b;">X Coord</label>
-                      <input id="vf-input-pos-x" type="number" step="0.05" class="form-input" value="${selectedAug.position[0]}" style="font-size: 11px; padding: 3px 6px;" />
-                    </div>
-                    <div>
-                      <label style="font-size: 10px; color: #64748b;">Y Coord</label>
-                      <input id="vf-input-pos-y" type="number" step="0.05" class="form-input" value="${selectedAug.position[1]}" style="font-size: 11px; padding: 3px 6px;" />
-                    </div>
-                    <div>
-                      <label style="font-size: 10px; color: #64748b;">Z Coord</label>
-                      <input id="vf-input-pos-z" type="number" step="0.05" class="form-input" value="${selectedAug.position[2]}" style="font-size: 11px; padding: 3px 6px;" />
-                    </div>
+                <!-- Configuration Section -->
+                <div style="margin-bottom: 14px;">
+                  <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">▾ PROJECT CONFIGURATION</div>
+                  <div style="padding-left: 10px; display: flex; flex-direction: column; gap: 4px; color: #94a3b8; font-size: 11px;">
+                    <div style="cursor: pointer;">• Theme: Industrial Dark</div>
+                    <div style="cursor: pointer;">• Experience: Assembly & QA</div>
+                    <div style="cursor: pointer;">• Target Format: Vuforia CAD Mesh</div>
+                    <div style="cursor: pointer; color: #facc15;">• Active ThingMarks: (${augmentations.filter(a => a.type === 'thingmark').length})</div>
                   </div>
                 </div>
 
-                <!-- 3-Axis Rotation -->
-                <div style="margin-bottom: 14px;">
-                  <div style="font-size: 11px; color: #94a3b8; margin-bottom: 3px;">Rotation (Degrees)</div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
-                    <div>
-                      <label style="font-size: 10px; color: #64748b;">X Rot</label>
-                      <input id="vf-input-rot-x" type="number" step="15" class="form-input" value="${selectedAug.rotation[0]}" style="font-size: 11px; padding: 3px 6px;" />
+                <!-- Views Hierarchy Tree -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">
+                    <span>▾ VIEWS & HIERARCHY</span>
+                    <span id="vf-btn-add-aug-tree" style="font-size: 14px; cursor: pointer; color: #38bdf8; padding: 0 4px;" title="Add 3D Augmentation">+</span>
+                  </div>
+                  
+                  <div style="padding-left: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
+                    <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #fff;">
+                      <span>▾ 📱 Home</span>
+                      <span style="font-size: 9px; color: #64748b;">(Home.js)</span>
                     </div>
-                    <div>
-                      <label style="font-size: 10px; color: #64748b;">Y Rot</label>
-                      <input id="vf-input-rot-y" type="number" step="15" class="form-input" value="${selectedAug.rotation[1]}" style="font-size: 11px; padding: 3px 6px;" />
-                    </div>
-                    <div>
-                      <label style="font-size: 10px; color: #64748b;">Z Rot</label>
-                      <input id="vf-input-rot-z" type="number" step="15" class="form-input" value="${selectedAug.rotation[2]}" style="font-size: 11px; padding: 3px 6px;" />
+
+                    <div style="padding-left: 12px;">
+                      <div style="display: flex; align-items: center; gap: 6px; color: #38bdf8; font-weight: 600;">
+                        <span>▾ 🧊 3D Container</span>
+                      </div>
+
+                      <div style="padding-left: 12px; margin-top: 4px; display: flex; flex-direction: column; gap: 3px;">
+                        <div class="vf-tree-item ${selectedElementId === 'model-1' ? 'active' : ''}" data-id="model-1" style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: ${selectedElementId === 'model-1' ? '#38bdf8' : '#cbd5e1'}; padding: 3px 6px; border-radius: 4px; background: ${selectedElementId === 'model-1' ? 'rgba(56, 189, 248, 0.14)' : 'transparent'};">
+                          <span>▾ ⚙️ model-1 (${activeModel.name.slice(0, 14)}...)</span>
+                        </div>
+
+                        <!-- Dynamic 3D Augmentations in Tree -->
+                        <div style="padding-left: 12px; display: flex; flex-direction: column; gap: 2px;">
+                          ${augmentations
+                            .map((aug) => {
+                              const isSel = aug.id === selectedElementId;
+                              const icon =
+                                aug.type === '3dlabel'
+                                  ? '🏷️'
+                                  : aug.type === '3dgauge'
+                                  ? '⏱️'
+                                  : aug.type === 'thingmark'
+                                  ? '🎯'
+                                  : '📍';
+                              return `
+                                <div class="vf-tree-item" data-id="${aug.id}" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: ${isSel ? '#38bdf8' : '#cbd5e1'}; font-weight: ${isSel ? '700' : '400'}; padding: 3px 6px; border-radius: 4px; background: ${isSel ? 'rgba(56, 189, 248, 0.16)' : 'transparent'}; border-left: 2px solid ${isSel ? '#38bdf8' : 'transparent'};">
+                                  <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                                    <span>${icon}</span>
+                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px;">${aug.name}</span>
+                                  </div>
+                                  <button class="vf-tree-item-delete" data-id="${aug.id}" style="background: none; border: none; color: #64748b; font-size: 11px; cursor: pointer; padding: 0 4px;" title="Remove element">✕</button>
+                                </div>
+                              `;
+                            })
+                            .join('')}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <!-- Telemetry Binding Selector -->
-                <div style="margin-bottom: 14px;">
-                  <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">→) Telemetry Data Binding</label>
-                  <select id="vf-select-binding" class="form-select" style="font-size: 11px; padding: 4px 8px; width: 100%;">
-                    <option value="none" ${selectedAug.bindingField === 'none' ? 'selected' : ''}>None (Static Annotation)</option>
-                    <option value="pressure" ${selectedAug.bindingField === 'pressure' ? 'selected' : ''}>Hydraulic Pressure (Bar)</option>
-                    <option value="temperature" ${selectedAug.bindingField === 'temperature' ? 'selected' : ''}>Fluid Temperature (°C)</option>
-                    <option value="vibration" ${selectedAug.bindingField === 'vibration' ? 'selected' : ''}>Vibration RMS (mm/s)</option>
-                    <option value="flowRate" ${selectedAug.bindingField === 'flowRate' ? 'selected' : ''}>Flow Rate (L/min)</option>
-                  </select>
                 </div>
               `
                   : `
-                <div style="background: #0d1724; border: 1px dashed #1e3a5f; padding: 12px; border-radius: 6px; color: #94a3b8; font-size: 11px; text-align: center;">
-                  Select an augmentation from the 3D scene or Project Tree to inspect and configure its 3D properties.
+                <!-- Records / CAD Hierarchy View -->
+                <div style="font-size: 11px; color: #cbd5e1;">
+                  <div style="font-weight: 700; color: #38bdf8; margin-bottom: 8px;">▾ QUALITY INSPECTION RECORDS</div>
+                  <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
+                    <div style="background: #0d1a2d; border: 1px solid #1e3a5f; padding: 6px 8px; border-radius: 4px;">
+                      <div style="color: #4ade80; font-weight: 700;">● QC Run #148: Bore Datum A</div>
+                      <div style="color: #94a3b8; font-size: 10px;">Measured: 24.01 mm · Target: 24.00 ± 0.10 mm (PASS)</div>
+                    </div>
+                    <div style="background: #0d1a2d; border: 1px solid #1e3a5f; padding: 6px 8px; border-radius: 4px;">
+                      <div style="color: #4ade80; font-weight: 700;">● QC Run #147: Gland Torque</div>
+                      <div style="color: #94a3b8; font-size: 10px;">Torque: 45.2 Nm · Spec: 45.0 Nm (PASS)</div>
+                    </div>
+                    <div style="background: #0d1a2d; border: 1px solid #1e3a5f; padding: 6px 8px; border-radius: 4px;">
+                      <div style="color: #4ade80; font-weight: 700;">● QC Run #146: Pressure Burst</div>
+                      <div style="color: #94a3b8; font-size: 10px;">Pressure: 210.4 Bar · Safe operating (PASS)</div>
+                    </div>
+                  </div>
+
+                  <div style="font-weight: 700; color: #38bdf8; margin-bottom: 8px;">▾ CAD ASSEMBLY PARTS</div>
+                  <div style="display: flex; flex-direction: column; gap: 4px; color: #94a3b8; font-size: 11px;">
+                    <div>⚙️ Cylinder Barrel (ST52 Cold Drawn)</div>
+                    <div>⚙️ Piston Rod (42CrMo4 Hard Chrome)</div>
+                    <div>⚙️ End Cap & Gland (GGG-40 Iron)</div>
+                    <div>⚙️ Polyurethane U-Cup Seal (90 Shore)</div>
+                  </div>
                 </div>
               `
               }
+            </div>
 
-              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #1e3a5f;">
-                <span style="font-size: 11px; color: #94a3b8;">WebXR Occlusion</span>
-                <span style="font-size: 11px; font-weight: 700; color: #4ade80;">REAL-TIME DEPTH (float32)</span>
+            <!-- Left Panel Footer -->
+            <div style="padding: 8px 12px; background: #0c1726; border-top: 1px solid #1e3a5f; font-size: 10px; color: #64748b; display: flex; justify-content: space-between;">
+              <span>Total Augmentations: <strong style="color: #38bdf8;">${augmentations.length}</strong></span>
+              <span>Home.js Ready</span>
+            </div>
+          </div>
+
+          <!-- COLUMN 2: REAL 3D CANVAS & VIEWPORT (Center Wide Area) -->
+          <div style="position: relative; display: flex; flex-direction: column; background: #03070d; overflow: hidden;">
+            <!-- Real WebGL Three.js Viewport Container -->
+            <div id="vf-three-container" style="flex: 1; position: relative; width: 100%; height: 100%; cursor: grab;">
+              <canvas id="vf-three-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block;"></canvas>
+              
+              <!-- Floating HTML Augmentations Overlay Layer -->
+              <div id="vf-html-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden;"></div>
+
+              <!-- Optical Model Target Framing Brackets (Vuforia Alignment Overlay) -->
+              <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path d="M 5 10 L 2 10 L 2 18" stroke="#38bdf8" stroke-width="0.8" fill="none" opacity="0.8" />
+                <path d="M 95 10 L 98 10 L 98 18" stroke="#38bdf8" stroke-width="0.8" fill="none" opacity="0.8" />
+                <path d="M 5 90 L 2 90 L 2 82" stroke="#38bdf8" stroke-width="0.8" fill="none" opacity="0.8" />
+                <path d="M 95 90 L 98 90 L 98 82" stroke="#38bdf8" stroke-width="0.8" fill="none" opacity="0.8" />
+              </svg>
+
+              <!-- Coordinate Axes Legend in bottom-left -->
+              <div style="position: absolute; bottom: 12px; left: 16px; font-family: monospace; font-size: 10px; font-weight: 700; background: rgba(10, 16, 26, 0.88); padding: 4px 10px; border-radius: 4px; border: 1px solid #1e3a5f; pointer-events: none; backdrop-filter: blur(4px);">
+                <span style="color: #ef4444;">— X</span> · <span style="color: #22c55e;">— Y (Up)</span> · <span style="color: #38bdf8;">— Z</span> · Orbit: Drag Mouse | Zoom: Scroll
               </div>
             </div>
 
-            <!-- EXTERNAL DATA / THINGWORX IOT BINDINGS -->
-            <div style="padding-top: 10px; border-top: 1px solid #1e3a5f;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-weight: 700; color: #38bdf8; font-size: 11px;">▾ THINGWORX IOT TELEMETRY</span>
-                <span style="font-size: 10px; color: #4ade80;">● Live Stream</span>
+            <!-- Bottom Floating Canvas Toolbar with Tools & Presets as Icons -->
+            <div style="background: #09111c; border-top: 1px solid #1e3a5f; padding: 4px 14px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; z-index: 10; gap: 8px;">
+              <!-- Left side: Tool Icons, Camera Presets, Wireframe & Selection -->
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <!-- Gizmo Tool Icons -->
+                <div class="vf-icon-group" title="Gizmo Transform Tools">
+                  <button class="vf-tool-btn vf-icon-btn ${activeTool === 'select' ? 'active' : ''}" data-tool="select" title="Select Tool (Q)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/></svg>
+                  </button>
+                  <button class="vf-tool-btn vf-icon-btn ${activeTool === 'move' ? 'active' : ''}" data-tool="move" title="Translate / Move Tool (W)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/></svg>
+                  </button>
+                  <button class="vf-tool-btn vf-icon-btn ${activeTool === 'rotate' ? 'active' : ''}" data-tool="rotate" title="Rotate Tool (E)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                  </button>
+                  <button class="vf-tool-btn vf-icon-btn ${activeTool === 'scale' ? 'active' : ''}" data-tool="scale" title="Scale Tool (R)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></svg>
+                  </button>
+                </div>
+
+                <span style="width: 1px; height: 16px; background: #1e3a5f;"></span>
+
+                <!-- Camera Presets Icons -->
+                <div class="vf-icon-group" title="Camera Perspectives">
+                  <button id="vf-btn-cam-iso" class="vf-cam-btn vf-icon-btn ${activePerspective === 'iso' ? 'active' : ''}" title="Isometric 3D View">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-9 5-9-5V8l9-5 9 5v8z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 12v9.5"/></svg>
+                  </button>
+                  <button id="vf-btn-cam-front" class="vf-cam-btn vf-icon-btn ${activePerspective === 'front' ? 'active' : ''}" title="Front Ortho / Perspective View">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3.5"/></svg>
+                  </button>
+                  <button id="vf-btn-cam-top" class="vf-cam-btn vf-icon-btn ${activePerspective === 'top' ? 'active' : ''}" title="Top-Down View">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  </button>
+                </div>
+
+                <!-- Wireframe Toggle Icon -->
+                <div class="vf-icon-group" title="Render Modes">
+                  <button id="vf-btn-wireframe" class="vf-icon-btn ${isWireframeActive ? 'active wireframe-active' : ''}" style="${isWireframeActive ? 'color: #f59e0b; border-color: rgba(245,158,11,0.5);' : ''}" title="Toggle CAD Wireframe (${isWireframeActive ? 'ON' : 'OFF'})">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 22 22 22"/><line x1="12" y1="2" x2="12" y2="22"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                  </button>
+                </div>
+
+                <span style="width: 1px; height: 16px; background: #1e3a5f;"></span>
+
+                <div style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+                  <span>Selected: <strong style="color: #38bdf8;">${selectedAug ? selectedAug.name : 'CAD Model Root'}</strong></span>
+                </div>
               </div>
 
-              <div style="background: #060b13; border: 1px solid #1e3a5f; border-radius: 6px; padding: 10px; font-size: 11px;">
-                <div style="font-size: 10px; color: #64748b; margin-bottom: 6px;">CONNECTED INDUSTRIAL SENSORS:</div>
+              <!-- Right side: IoT Telemetry & Zoom Controls -->
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-family: monospace; color: #4ade80; font-size: 10px; display: flex; align-items: center; gap: 5px;">
+                  <span style="width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80;"></span>
+                  IoT Live: ONLINE
+                </span>
 
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #94a3b8;">HydraulicPressure:</span>
-                    <strong id="live-val-pressure" style="color: #38bdf8; font-family: monospace;">${telemetry.pressureBar.toFixed(1)} Bar</strong>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #94a3b8;">OilTemperature:</span>
-                    <strong id="live-val-temp" style="color: #f59e0b; font-family: monospace;">${telemetry.temperatureC.toFixed(1)} °C</strong>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #94a3b8;">VibrationRms:</span>
-                    <strong id="live-val-vib" style="color: #4ade80; font-family: monospace;">${telemetry.vibrationRms.toFixed(3)} mm/s</strong>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #94a3b8;">FlowRate:</span>
-                    <strong id="live-val-flow" style="color: #cbd5e1; font-family: monospace;">${telemetry.flowRateLmin.toFixed(1)} L/min</strong>
-                  </div>
-                </div>
+                <span style="width: 1px; height: 16px; background: #1e3a5f;"></span>
 
-                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #1e3a5f; display: flex; align-items: center; justify-content: space-between;">
-                  <span style="font-size: 10px; color: #64748b;">Auto-Refresh Stream:</span>
-                  <input id="vf-check-autorefresh" type="checkbox" ${isAutoRefreshActive ? 'checked' : ''} style="accent-color: #38bdf8;" />
+                <!-- Zoom Controls -->
+                <div class="vf-icon-group">
+                  <button id="vf-btn-zoom-out" class="vf-icon-btn" title="Zoom Out" style="width: 22px; height: 22px;">—</button>
+                  <span id="vf-zoom-label" style="font-family: monospace; font-size: 10px; font-weight: 700; color: #fff; min-width: 32px; text-align: center;">${canvasZoomPercent}%</span>
+                  <button id="vf-btn-zoom-in" class="vf-icon-btn" title="Zoom In" style="width: 22px; height: 22px;">+</button>
                 </div>
+                <button id="vf-btn-zoom-fit" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 10px; border-radius: 4px;" title="Fit Camera to Model">⛶ Fit</button>
+                <button id="vf-btn-zoom-reset" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 10px; border-radius: 4px;" title="Reset Orbit">↺ Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUMN 3: MODEL · DETAILS & PROPERTIES (Right Panel with WIDGET / SCREEN / IOT Tabs) -->
+          <div style="background: #09111c; border-left: 1px solid #1e3a5f; display: flex; flex-direction: column; overflow: hidden;">
+            <!-- Tab Header (Right Panel Inspector - Icon Tabs) -->
+            <div class="vf-tab-bar">
+              <div class="vf-right-tab-btn vf-tab-item ${activeRightTab === 'widget' ? 'active' : ''}" data-tab="widget" title="Widget Properties & Transforms">
+                <span style="font-size: 16px;">🧩</span>
+              </div>
+              <div class="vf-right-tab-btn vf-tab-item ${activeRightTab === 'model' ? 'active' : ''}" data-tab="model" title="Screen & 3D CAD Model Target">
+                <span style="font-size: 16px;">🧊</span>
+              </div>
+              <div class="vf-right-tab-btn vf-tab-item ${activeRightTab === 'iot' ? 'active' : ''}" data-tab="iot" title="ThingWorx IoT Live Telemetry">
+                <span style="font-size: 16px;">📡</span>
               </div>
             </div>
 
-            <!-- Deploy / Export Card -->
-            <div style="margin-top: 18px; padding: 12px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; text-align: center;">
-              <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px;">Zero-Install WebXR Target</div>
-              <p style="font-size: 10px; color: #94a3b8; margin-bottom: 10px;">Ready for instant deployment to Meta Quest 3 Browser & WebXR AR passthrough.</p>
-              <button id="vf-btn-deploy-quest" class="btn btn-primary btn-sm" style="width: 100%; justify-content: center;">
-                Deploy Experience to Meta Quest 3 →
-              </button>
+            <div style="flex: 1; overflow-y: auto; padding: 14px 16px; font-size: 12px;">
+              ${
+                activeRightTab === 'widget'
+                  ? `
+                <!-- TAB 1: WIDGET PROPERTIES -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <span style="font-weight: 700; color: #38bdf8; font-size: 11px;">▾ WIDGET CONFIGURATION</span>
+                  ${selectedAug ? `<button id="vf-btn-remove-selected" style="background: transparent; border: none; color: #f43f5e; font-size: 11px; font-weight: 700; cursor: pointer;">✕ Remove</button>` : ''}
+                </div>
+
+                ${
+                  selectedAug
+                    ? `
+                  <div style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">Augmentation Label / Title</label>
+                    <input id="vf-input-label" type="text" class="form-input" value="${selectedAug.label}" style="font-size: 11px; padding: 4px 8px; width: 100%;" />
+                  </div>
+
+                  <div style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">→) Scale</label>
+                    <input id="vf-input-scale" type="number" step="0.1" min="0.2" max="3" class="form-input" value="${selectedAug.scale}" style="font-size: 11px; padding: 4px 8px; width: 100%;" />
+                  </div>
+
+                  <!-- 6DOF Spatial Coordinates -->
+                  <div style="margin-bottom: 10px;">
+                    <div style="font-size: 11px; color: #94a3b8; margin-bottom: 3px;">3D Position (Meters)</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+                      <div>
+                        <label style="font-size: 10px; color: #64748b;">X Coord</label>
+                        <input id="vf-input-pos-x" type="number" step="0.05" class="form-input" value="${selectedAug.position[0]}" style="font-size: 11px; padding: 3px 6px; width: 100%;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: #64748b;">Y Coord</label>
+                        <input id="vf-input-pos-y" type="number" step="0.05" class="form-input" value="${selectedAug.position[1]}" style="font-size: 11px; padding: 3px 6px; width: 100%;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: #64748b;">Z Coord</label>
+                        <input id="vf-input-pos-z" type="number" step="0.05" class="form-input" value="${selectedAug.position[2]}" style="font-size: 11px; padding: 3px 6px; width: 100%;" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 3-Axis Rotation -->
+                  <div style="margin-bottom: 14px;">
+                    <div style="font-size: 11px; color: #94a3b8; margin-bottom: 3px;">Rotation (Degrees)</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+                      <div>
+                        <label style="font-size: 10px; color: #64748b;">X Rot</label>
+                        <input id="vf-input-rot-x" type="number" step="15" class="form-input" value="${selectedAug.rotation[0]}" style="font-size: 11px; padding: 3px 6px; width: 100%;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: #64748b;">Y Rot</label>
+                        <input id="vf-input-rot-y" type="number" step="15" class="form-input" value="${selectedAug.rotation[1]}" style="font-size: 11px; padding: 3px 6px; width: 100%;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: #64748b;">Z Rot</label>
+                        <input id="vf-input-rot-z" type="number" step="15" class="form-input" value="${selectedAug.rotation[2]}" style="font-size: 11px; padding: 3px 6px; width: 100%;" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Telemetry Binding Selector -->
+                  <div style="margin-bottom: 14px;">
+                    <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">→) Telemetry Data Binding</label>
+                    <select id="vf-select-binding" class="form-select" style="font-size: 11px; padding: 4px 8px; width: 100%;">
+                      <option value="none" ${selectedAug.bindingField === 'none' ? 'selected' : ''}>None (Static Annotation)</option>
+                      <option value="pressure" ${selectedAug.bindingField === 'pressure' ? 'selected' : ''}>Hydraulic Pressure (Bar)</option>
+                      <option value="temperature" ${selectedAug.bindingField === 'temperature' ? 'selected' : ''}>Fluid Temperature (°C)</option>
+                      <option value="vibration" ${selectedAug.bindingField === 'vibration' ? 'selected' : ''}>Vibration RMS (mm/s)</option>
+                      <option value="flowRate" ${selectedAug.bindingField === 'flowRate' ? 'selected' : ''}>Flow Rate (L/min)</option>
+                    </select>
+                  </div>
+                `
+                    : `
+                  <div style="background: #0d1724; border: 1px dashed #1e3a5f; padding: 14px; border-radius: 6px; color: #94a3b8; font-size: 11px; text-align: center; margin-bottom: 16px;">
+                    Select an augmentation from the top ribbon, 3D scene, or Project Tree to configure its 3D properties.
+                  </div>
+                `
+                }
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #1e3a5f;">
+                  <span style="font-size: 11px; color: #94a3b8;">WebXR Occlusion</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #4ade80;">REAL-TIME DEPTH (float32)</span>
+                </div>
+              `
+                  : activeRightTab === 'model'
+                  ? `
+                <!-- TAB 2: MODEL RESOURCE & TARGET -->
+                <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 10px;">▾ CAD MODEL & TARGET PROPERTIES</div>
+
+                <div style="margin-bottom: 12px;">
+                  <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">→) CAD Model Resource</label>
+                  <select id="vf-select-resource" class="form-select" style="font-size: 11px; padding: 4px 8px; width: 100%;">
+                    ${models
+                      .map(
+                        (m, idx) => `
+                      <option value="${idx}" ${idx === activeModelIndex ? 'selected' : ''}>
+                        ${m.name} (${m.format.toUpperCase()})
+                      </option>
+                    `
+                      )
+                      .join('')}
+                  </select>
+                </div>
+
+                <div style="background: #060b13; border: 1px solid #1e3a5f; border-radius: 6px; padding: 10px; margin-bottom: 14px; font-size: 11px;">
+                  <div style="color: #38bdf8; font-weight: 700; margin-bottom: 4px;">Optical Model Target Specifications</div>
+                  <div style="color: #94a3b8; line-height: 1.4;">
+                    <div>• Tracking Algorithm: CAD Feature Edge Tracker</div>
+                    <div>• Robustness Rating: <strong style="color: #4ade80;">99.4% (Optimal)</strong></div>
+                    <div>• Surface Material: PBR Metallic-Roughness</div>
+                    <div>• Scale Unit: Metric (Meters)</div>
+                  </div>
+                </div>
+
+                <!-- Deploy / Export Card -->
+                <div style="padding: 12px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; text-align: center;">
+                  <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px;">Zero-Install WebXR Target</div>
+                  <p style="font-size: 10px; color: #94a3b8; margin-bottom: 10px;">Ready for instant deployment to Meta Quest 3 Browser & WebXR AR passthrough.</p>
+                  <button id="vf-btn-deploy-quest" class="btn btn-primary btn-sm" style="width: 100%; justify-content: center;">
+                    Deploy Experience to Meta Quest 3 →
+                  </button>
+                </div>
+              `
+                  : `
+                <!-- TAB 3: THINGWORX IOT DATA -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span style="font-weight: 700; color: #38bdf8; font-size: 11px;">▾ THINGWORX IOT TELEMETRY</span>
+                  <span style="font-size: 10px; color: #4ade80;">● Live Stream</span>
+                </div>
+
+                <div style="background: #060b13; border: 1px solid #1e3a5f; border-radius: 6px; padding: 12px; font-size: 11px;">
+                  <div style="font-size: 10px; color: #64748b; margin-bottom: 8px;">CONNECTED INDUSTRIAL SENSORS:</div>
+
+                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span style="color: #94a3b8;">HydraulicPressure:</span>
+                        <strong id="live-val-pressure" style="color: #38bdf8; font-family: monospace;">${telemetry.pressureBar.toFixed(1)} Bar</strong>
+                      </div>
+                      <div style="height: 4px; background: #1e3a5f; border-radius: 2px; overflow: hidden;">
+                        <div style="height: 100%; width: ${(telemetry.pressureBar / 250) * 100}%; background: #38bdf8;"></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span style="color: #94a3b8;">OilTemperature:</span>
+                        <strong id="live-val-temp" style="color: #f59e0b; font-family: monospace;">${telemetry.temperatureC.toFixed(1)} °C</strong>
+                      </div>
+                      <div style="height: 4px; background: #1e3a5f; border-radius: 2px; overflow: hidden;">
+                        <div style="height: 100%; width: ${(telemetry.temperatureC / 100) * 100}%; background: #f59e0b;"></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span style="color: #94a3b8;">VibrationRms:</span>
+                        <strong id="live-val-vib" style="color: #4ade80; font-family: monospace;">${telemetry.vibrationRms.toFixed(3)} mm/s</strong>
+                      </div>
+                      <div style="height: 4px; background: #1e3a5f; border-radius: 2px; overflow: hidden;">
+                        <div style="height: 100%; width: ${(telemetry.vibrationRms / 0.15) * 100}%; background: #4ade80;"></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span style="color: #94a3b8;">FlowRate:</span>
+                        <strong id="live-val-flow" style="color: #cbd5e1; font-family: monospace;">${telemetry.flowRateLmin.toFixed(1)} L/min</strong>
+                      </div>
+                      <div style="height: 4px; background: #1e3a5f; border-radius: 2px; overflow: hidden;">
+                        <div style="height: 100%; width: ${(telemetry.flowRateLmin / 25) * 100}%; background: #cbd5e1;"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #1e3a5f; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 10px; color: #64748b;">Auto-Refresh Stream:</span>
+                    <input id="vf-check-autorefresh" type="checkbox" ${isAutoRefreshActive ? 'checked' : ''} style="accent-color: #38bdf8;" />
+                  </div>
+                </div>
+              `
+              }
             </div>
           </div>
         </div>
@@ -839,12 +976,45 @@ export function renderVuforiaStudioView(
   };
 
   const bindUIEventListeners = () => {
+    // Left Tab switching (SCREENS / RECORDS)
+    container.querySelectorAll('.vf-left-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        activeLeftTab = (e.currentTarget as HTMLElement).getAttribute('data-tab') as any;
+        renderUI();
+      });
+    });
+
+    // Right Tab switching (WIDGET / MODEL / IOT)
+    container.querySelectorAll('.vf-right-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        activeRightTab = (e.currentTarget as HTMLElement).getAttribute('data-tab') as any;
+        renderUI();
+      });
+    });
+
+    // Tree item delete buttons
+    container.querySelectorAll('.vf-tree-item-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+        if (id) {
+          augmentations = augmentations.filter((a) => a.id !== id);
+          if (selectedElementId === id) {
+            selectedElementId = augmentations[0]?.id || 'model-1';
+          }
+          rebuild3DPinAnchors();
+          renderUI();
+        }
+      });
+    });
+
     // Project Tree Item Clicks
     container.querySelectorAll('.vf-tree-item').forEach((item) => {
       item.addEventListener('click', (e) => {
         const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
         if (id) {
           selectedElementId = id;
+          activeRightTab = 'widget';
           rebuild3DPinAnchors();
           renderUI();
         }
@@ -880,13 +1050,51 @@ export function renderVuforiaStudioView(
       renderUI();
     });
 
-    // Widgets Add Buttons (Clicking Widget Toolbox ADDS real 3D elements)
+    // Canvas Bottom Zoom Controls (Image 2 style)
+    container.querySelector('#vf-btn-zoom-in')?.addEventListener('click', () => {
+      camRadius = Math.max(0.6, camRadius - 0.25);
+      canvasZoomPercent = Math.min(200, canvasZoomPercent + 15);
+      updateCameraPosition();
+      const zoomLabel = container.querySelector('#vf-zoom-label');
+      if (zoomLabel) zoomLabel.textContent = `${canvasZoomPercent}%`;
+    });
+
+    container.querySelector('#vf-btn-zoom-out')?.addEventListener('click', () => {
+      camRadius = Math.min(4.5, camRadius + 0.25);
+      canvasZoomPercent = Math.max(50, canvasZoomPercent - 15);
+      updateCameraPosition();
+      const zoomLabel = container.querySelector('#vf-zoom-label');
+      if (zoomLabel) zoomLabel.textContent = `${canvasZoomPercent}%`;
+    });
+
+    container.querySelector('#vf-btn-zoom-fit')?.addEventListener('click', () => {
+      camRadius = 1.35;
+      canvasZoomPercent = 110;
+      updateCameraPosition();
+      const zoomLabel = container.querySelector('#vf-zoom-label');
+      if (zoomLabel) zoomLabel.textContent = `${canvasZoomPercent}%`;
+    });
+
+    container.querySelector('#vf-btn-zoom-reset')?.addEventListener('click', () => {
+      setCameraPreset('iso');
+      canvasZoomPercent = 100;
+      const zoomLabel = container.querySelector('#vf-zoom-label');
+      if (zoomLabel) zoomLabel.textContent = `100%`;
+    });
+
+    // Horizontal Widgets Ribbon Add Buttons
     container.querySelectorAll('.vf-widget-add').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const widgetType = (e.currentTarget as HTMLElement).getAttribute('data-widget');
         const newId = `${widgetType}-${Date.now().toString().slice(-4)}`;
 
-        if (widgetType === '3dlabel') {
+        if (widgetType === 'model_target') {
+          activeRightTab = 'model';
+          toastMessage = '✓ Activated PTC Vuforia Model Target Tracking (99.4% Robustness)';
+        } else if (widgetType === 'spatial_target') {
+          activeRightTab = 'model';
+          toastMessage = '✓ Activated Spatial Surface Tracking Target';
+        } else if (widgetType === '3dlabel') {
           augmentations.push({
             id: newId,
             type: '3dlabel',
@@ -897,6 +1105,8 @@ export function renderVuforiaStudioView(
             scale: 1.0,
             bindingField: 'none',
           });
+          selectedElementId = newId;
+          activeRightTab = 'widget';
           toastMessage = `✓ Added 3D Label [${newId}] to scene!`;
         } else if (widgetType === '3dgauge') {
           augmentations.push({
@@ -909,6 +1119,8 @@ export function renderVuforiaStudioView(
             scale: 1.0,
             bindingField: 'pressure',
           });
+          selectedElementId = newId;
+          activeRightTab = 'widget';
           toastMessage = `✓ Added 3D Gauge [${newId}] to scene!`;
         } else if (widgetType === 'spatial_pin') {
           augmentations.push({
@@ -921,6 +1133,8 @@ export function renderVuforiaStudioView(
             scale: 1.0,
             bindingField: 'none',
           });
+          selectedElementId = newId;
+          activeRightTab = 'widget';
           toastMessage = `✓ Added 3D Spatial Pin [${newId}]!`;
         } else if (widgetType === 'thingmark') {
           augmentations.push({
@@ -933,10 +1147,70 @@ export function renderVuforiaStudioView(
             scale: 1.0,
             bindingField: 'none',
           });
+          selectedElementId = newId;
+          activeRightTab = 'widget';
           toastMessage = `✓ Added ThingMark [${newId}]!`;
+        } else if (widgetType === '3dimage') {
+          augmentations.push({
+            id: newId,
+            type: '3dlabel',
+            name: `3DImage-${augmentations.length + 1}`,
+            label: `Exploded View Schematic Callout`,
+            position: [0.15, 0.28, 0.0],
+            rotation: [0, 0, 0],
+            scale: 1.0,
+            bindingField: 'none',
+          });
+          selectedElementId = newId;
+          activeRightTab = 'widget';
+          toastMessage = `✓ Added 3D Image Callout [${newId}]!`;
+        } else if (widgetType === 'tml_text') {
+          augmentations.push({
+            id: newId,
+            type: '3dlabel',
+            name: `SOPCard-${augmentations.length + 1}`,
+            label: `SOP Instruction: Check O-Ring Depth`,
+            position: [-0.1, 0.15, 0.1],
+            rotation: [0, 0, 0],
+            scale: 1.0,
+            bindingField: 'none',
+          });
+          selectedElementId = newId;
+          activeRightTab = 'widget';
+          toastMessage = `✓ Added SOP Card [${newId}]!`;
+        } else if (widgetType === 'qc_tolerance') {
+          augmentations.push({
+            id: newId,
+            type: '3dlabel',
+            name: `Tolerance-${augmentations.length + 1}`,
+            label: `Tolerance Datum: ±0.05 mm (PASS)`,
+            position: [0.2, 0.2, -0.05],
+            rotation: [0, 0, 0],
+            scale: 1.0,
+            bindingField: 'none',
+          });
+          selectedElementId = newId;
+          activeRightTab = 'widget';
+          toastMessage = `✓ Added Quality Tolerance Pin [${newId}]!`;
+        } else if (widgetType === 'sensor_chart') {
+          augmentations.push({
+            id: newId,
+            type: '3dgauge',
+            name: `SensorChart-${augmentations.length + 1}`,
+            label: `Live Pressure Trend Curve`,
+            position: [-0.2, 0.38, 0.0],
+            rotation: [0, 0, 0],
+            scale: 1.0,
+            bindingField: 'pressure',
+          });
+          selectedElementId = newId;
+          activeRightTab = 'widget';
+          toastMessage = `✓ Added Telemetry Chart [${newId}]!`;
+        } else if (widgetType === 'digital_twin') {
+          activeRightTab = 'iot';
+          toastMessage = `✓ Synchronized ThingWorx Digital Twin stream!`;
         }
 
-        selectedElementId = newId;
         rebuild3DPinAnchors();
         renderUI();
 
@@ -944,8 +1218,13 @@ export function renderVuforiaStudioView(
           toastMessage = '';
           const msg = container.querySelector('#vf-toast-msg');
           if (msg) msg.remove();
-        }, 3000);
+        }, 3500);
       });
+    });
+
+    container.querySelector('#vf-btn-add-screen-target')?.addEventListener('click', () => {
+      const btn = container.querySelector('.vf-widget-add[data-widget="model_target"]') as HTMLButtonElement;
+      btn?.click();
     });
 
     container.querySelector('#vf-btn-add-aug-tree')?.addEventListener('click', () => {
