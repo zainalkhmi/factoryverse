@@ -38,6 +38,11 @@ import {
   vuforiaTargetManagerService,
   type VuforiaTarget,
 } from '../services/vuforia-target-manager-service';
+import {
+  vuforiaProjectService,
+  type VuforiaProject,
+} from '../services/vuforia-project-service';
+import { openVuforiaNewProjectModal } from './VuforiaNewProjectModal';
 
 export interface VuforiaAugmentation {
   id: string;
@@ -58,6 +63,9 @@ export function renderVuforiaStudioView(
   const models = storageRepository.getModels();
   let activeModelIndex = 0;
   let activeModel: ModelAsset = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+
+  let currentProject: VuforiaProject = vuforiaProjectService.getActiveProject();
+  let projectName = currentProject.name;
 
   let activeTarget: VuforiaTarget =
     vuforiaTargetManagerService.getActiveTarget() ||
@@ -305,41 +313,22 @@ export function renderVuforiaStudioView(
     container.innerHTML = `
       <div style="display: flex; flex-direction: column; height: calc(100vh - 52px); width: 100%; background: #070d17; overflow: hidden;">
         
-        <!-- TOP LEVEL 2: HORIZONTAL ACTION & WIDGETS RIBBON TOOLBAR (Image 2 style) -->
+        <!-- TOP HORIZONTAL WIDGETS TOOLBOX RIBBON (Single Slim Centered Row) -->
         <div class="vf-top-ribbon">
-          <!-- Row 1: Experience Header & Right Actions -->
-          <div class="vf-ribbon-row-1">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <button id="vf-btn-add-screen-target" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000; font-weight: 700; padding: 4px 12px; gap: 6px;" title="Open PTC Vuforia Target Manager">
-                <span>+</span> Add Target
-              </button>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 16px;">📐</span>
-                <div>
-                  <span style="font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">PTC Vuforia Studio · Target Manager</span>
-                  <div style="font-size: 13px; font-weight: 700; color: #fff;">${activeTarget ? activeTarget.name : 'Hydraulic Cylinder'} (${activeModel.name})</div>
-                </div>
-              </div>
-              <span style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
-                ● ${activeTarget ? activeTarget.type.toUpperCase().replace('_', ' ') : 'MODEL TARGET'} LOCKED (${activeTarget ? activeTarget.robustnessScore : 99.4}%)
-              </span>
-              ${toastMessage ? `<span id="vf-toast-msg" style="font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.4);">${toastMessage}</span>` : ''}
-            </div>
-          </div>
-
-          <!-- Row 2: HORIZONTAL WIDGETS TOOLBOX RIBBON (Centered Big Icon Toolbar) -->
-          <div class="vf-ribbon-row-2">
-            <div class="vf-widget-ribbon">
-              <!-- TARGETS (Cyan Tinted) -->
-              <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="model_target" title="PTC Model Target (CAD Optical Tracking)">
-                <span>📐</span>
-              </button>
-              <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="thingmark" title="ThingMark / VuMark Optical Anchor">
-                <span>🎯</span>
-              </button>
-              <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="spatial_target" title="Spatial Surface SLAM Tracking">
-                <span>🌐</span>
-              </button>
+          <div class="vf-widget-ribbon">
+            <!-- TARGETS (Cyan Tinted) -->
+            <button id="vf-btn-add-screen-target" class="vf-widget-add vf-widget-card-btn target-type" data-widget="add_target" title="+ Add Vuforia Target (Target Manager Wizard)">
+              <span>➕</span>
+            </button>
+            <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="model_target" title="PTC Model Target (CAD Optical Tracking)">
+              <span>📐</span>
+            </button>
+            <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="thingmark" title="ThingMark / VuMark Optical Anchor">
+              <span>🎯</span>
+            </button>
+            <button class="vf-widget-add vf-widget-card-btn target-type" data-widget="spatial_target" title="Spatial Surface SLAM Tracking">
+              <span>🌐</span>
+            </button>
 
               <span style="width: 1px; height: 18px; background: #1e3a5f; margin: 0 4px; flex-shrink: 0;"></span>
 
@@ -373,8 +362,8 @@ export function renderVuforiaStudioView(
                 <span>⚡</span>
               </button>
             </div>
+            ${toastMessage ? `<span id="vf-toast-msg" style="position: absolute; right: 16px; font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.4); pointer-events: none; z-index: 30;">${toastMessage}</span>` : ''}
           </div>
-        </div>
 
         <!-- 3-COLUMN WORKSPACE BODY: LEFT PROJECT TREE | CENTER 3D VIEWPORT | RIGHT INSPECTOR -->
         <div style="display: grid; grid-template-columns: 260px 1fr 340px; flex: 1; min-height: 0; background: #070d17;">
@@ -391,6 +380,22 @@ export function renderVuforiaStudioView(
               </div>
             </div>
 
+            <!-- Project Header with Editable Name & New Project Button -->
+            <div style="padding: 10px 12px; background: #060e19; border-bottom: 1px solid #1e3a5f; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
+                  📁 PROJECT
+                </span>
+                <button id="vf-btn-new-project" class="btn btn-primary btn-sm" style="padding: 2px 8px; font-size: 10px; font-weight: 700; gap: 4px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000;" title="Create New Vuforia Studio Project">
+                  <span>➕</span> New Project
+                </button>
+              </div>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input id="vf-input-project-name" type="text" class="form-input" value="${projectName}" placeholder="Project Name..." style="font-size: 11px; font-weight: 700; color: #fff; padding: 4px 24px 4px 8px; width: 100%; background: #0b1728; border: 1px solid #1e3a5f; border-radius: 4px;" title="Click to edit project name" />
+                <span style="position: absolute; right: 8px; font-size: 11px; color: #64748b; pointer-events: none;" title="Editable">✏️</span>
+              </div>
+            </div>
+
             <div style="flex: 1; overflow-y: auto; padding: 12px;">
               ${
                 activeLeftTab === 'screens'
@@ -400,7 +405,7 @@ export function renderVuforiaStudioView(
                   <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">▾ PROJECT CONFIGURATION</div>
                   <div style="padding-left: 10px; display: flex; flex-direction: column; gap: 4px; color: #94a3b8; font-size: 11px;">
                     <div style="cursor: pointer;">• Theme: Industrial Dark</div>
-                    <div style="cursor: pointer;">• Experience: Assembly & QA</div>
+                    <div style="cursor: pointer;">• Experience: ${currentProject.template.toUpperCase().replace('_', ' ')}</div>
                     <div style="cursor: pointer;">• Target Format: Vuforia CAD Mesh</div>
                     <div style="cursor: pointer; color: #facc15;">• Active ThingMarks: (${augmentations.filter(a => a.type === 'thingmark').length})</div>
                     <div id="vf-tree-target-mgr-link" style="cursor: pointer; color: #38bdf8; display: flex; align-items: center; justify-content: space-between; margin-top: 4px; padding: 3px 6px; border-radius: 3px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2);" title="Open Vuforia Target Manager">
@@ -575,6 +580,12 @@ export function renderVuforiaStudioView(
 
               <!-- Right side: IoT Telemetry & Zoom Controls -->
               <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.25); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;" title="${activeTarget ? activeTarget.name : 'Model Target'}">
+                  ● ${activeTarget ? activeTarget.type.toUpperCase().replace('_', ' ') : 'MODEL TARGET'} (${activeTarget ? activeTarget.robustnessScore : 99.4}%)
+                </span>
+
+                <span style="width: 1px; height: 16px; background: #1e3a5f;"></span>
+
                 <span style="font-family: monospace; color: #4ade80; font-size: 10px; display: flex; align-items: center; gap: 5px;">
                   <span style="width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80;"></span>
                   IoT Live: ONLINE
@@ -1119,7 +1130,13 @@ export function renderVuforiaStudioView(
         const widgetType = (e.currentTarget as HTMLElement).getAttribute('data-widget');
         const newId = `${widgetType}-${Date.now().toString().slice(-4)}`;
 
-        if (widgetType === 'model_target' || widgetType === 'spatial_target' || widgetType === 'thingmark') {
+        if (widgetType === 'add_target') {
+          openVuforiaTargetManagerModal({
+            initialTab: 'add_target',
+            onTargetActivated: handleTargetActivated,
+          });
+          return;
+        } else if (widgetType === 'model_target' || widgetType === 'spatial_target' || widgetType === 'thingmark') {
           openVuforiaTargetManagerModal({
             initialTab: 'database',
             onTargetActivated: handleTargetActivated,
@@ -1271,6 +1288,41 @@ export function renderVuforiaStudioView(
       openVuforiaTargetManagerModal({
         initialTab: 'database',
         onTargetActivated: handleTargetActivated,
+      });
+    });
+
+    // Project Name Editing
+    const inputProjectName = container.querySelector('#vf-input-project-name') as HTMLInputElement;
+    inputProjectName?.addEventListener('change', (e) => {
+      const val = (e.target as HTMLInputElement).value;
+      currentProject = vuforiaProjectService.updateProjectName(val);
+      projectName = currentProject.name;
+      toastMessage = `✓ Project renamed to "${projectName}"`;
+      const toastEl = container.querySelector('#vf-toast-msg');
+      if (toastEl) toastEl.textContent = toastMessage;
+    });
+
+    inputProjectName?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        inputProjectName.blur();
+      }
+    });
+
+    // New Project Modal Action
+    container.querySelector('#vf-btn-new-project')?.addEventListener('click', () => {
+      openVuforiaNewProjectModal({
+        onProjectCreated: ({ project, augmentations: newAugs, modelIndex }) => {
+          currentProject = project;
+          projectName = project.name;
+          augmentations = newAugs;
+          selectedElementId = augmentations[0]?.id || 'model-1';
+          activeModelIndex = modelIndex;
+          activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+          rebuild3DSceneGeometry();
+          rebuild3DPinAnchors();
+          toastMessage = `✓ Created new project: "${project.name}"`;
+          renderUI();
+        },
       });
     });
 
