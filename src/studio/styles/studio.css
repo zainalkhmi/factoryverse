@@ -224,31 +224,16 @@ body {
   color: #fff;
 }
 
-/* Vuforia Studio Top Widget Ribbon Bar (Image 2 style) */
+/* Vuforia Studio Top Widget Ribbon Bar */
 .vf-top-ribbon {
   background: #09121f;
   border-bottom: 1px solid #1e3a5f;
   display: flex;
-  flex-direction: column;
-  padding: 8px 16px;
-  gap: 8px;
-  z-index: 20;
-}
-
-.vf-ribbon-row-1 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.vf-ribbon-row-2 {
-  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  padding: 4px 16px;
+  position: relative;
+  z-index: 20;
 }
 
 /* Bottom Canvas Tool Icon Buttons */
