@@ -22,6 +22,7 @@ import {
   PerspectiveCamera,
   Scene,
   SphereGeometry,
+  TorusGeometry,
   Vector3,
   WebGLRenderer,
 } from '@iwsdk/core';
@@ -37,12 +38,14 @@ import { openVuforiaTargetManagerModal } from './VuforiaTargetManagerModal';
 import {
   vuforiaTargetManagerService,
   type VuforiaTarget,
+  type VuforiaTargetType,
 } from '../services/vuforia-target-manager-service';
 import {
   vuforiaProjectService,
   type VuforiaProject,
 } from '../services/vuforia-project-service';
 import { openVuforiaNewProjectModal } from './VuforiaNewProjectModal';
+import { openVuforiaHelpModal } from './VuforiaHelpModal';
 
 export interface VuforiaAugmentation {
   id: string;
@@ -58,14 +61,19 @@ export interface VuforiaAugmentation {
 
 export function renderVuforiaStudioView(
   container: HTMLElement,
-  onNavigate: (viewId: string, param?: string) => void
+  onNavigate: (viewId: string, param?: string, mode?: 'vr' | 'ar') => void
 ): void {
   const models = storageRepository.getModels();
-  let activeModelIndex = 0;
-  let activeModel: ModelAsset = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
 
   let currentProject: VuforiaProject = vuforiaProjectService.getActiveProject();
   let projectName = currentProject.name;
+
+  let activeModelIndex = 0;
+  if (currentProject.associatedModelId) {
+    const foundIdx = models.findIndex((m) => m.id === currentProject.associatedModelId);
+    if (foundIdx >= 0) activeModelIndex = foundIdx;
+  }
+  let activeModel: ModelAsset = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
 
   let activeTarget: VuforiaTarget =
     vuforiaTargetManagerService.getActiveTarget() ||
@@ -78,6 +86,8 @@ export function renderVuforiaStudioView(
       if (mIdx >= 0) {
         activeModelIndex = mIdx;
         activeModel = models[activeModelIndex];
+        currentProject.associatedModelId = activeModel.id;
+        vuforiaProjectService.saveActiveProject(currentProject);
         rebuild3DSceneGeometry();
       }
     }
@@ -85,71 +95,43 @@ export function renderVuforiaStudioView(
     renderUI();
   };
 
-  // Real Dynamic Augmentations List (Authorable in 3D Scene)
-  let augmentations: VuforiaAugmentation[] = [
-    {
-      id: '3dlabel-1',
-      type: '3dlabel',
-      name: '3DLabel-1 (Bore Datum)',
-      label: 'Bore Datum A: 24.00 ± 0.10 mm',
-      position: [-0.25, 0.22, 0.0],
-      rotation: [0, 0, 0],
-      scale: 1.0,
-      bindingField: 'none',
-    },
-    {
-      id: '3dlabel-2',
-      type: '3dlabel',
-      name: '3DLabel-2 (Seal Groove)',
-      label: 'U-Cup Seal Retention Groove',
-      position: [0.08, 0.22, 0.0],
-      rotation: [0, 0, 0],
-      scale: 1.0,
-      bindingField: 'none',
-    },
-    {
-      id: '3dlabel-3',
-      type: '3dlabel',
-      name: '3DLabel-3 (Gland Flange)',
-      label: 'Gland Flange: 45 Nm Torque',
-      position: [0.32, -0.18, 0.0],
-      rotation: [0, 0, 0],
-      scale: 1.0,
-      bindingField: 'none',
-    },
-    {
-      id: '3dgauge-1',
-      type: '3dgauge',
-      name: '3DGauge-1 (Pressure)',
-      label: 'Hydraulic Line Pressure',
-      position: [-0.15, 0.38, 0.0],
-      rotation: [0, 0, 0],
-      scale: 1.0,
-      bindingField: 'pressure',
-    },
-    {
-      id: '3dgauge-2',
-      type: '3dgauge',
-      name: '3DGauge-2 (Temp)',
-      label: 'Fluid Operating Temperature',
-      position: [0.26, 0.36, 0.0],
-      rotation: [0, 0, 0],
-      scale: 1.0,
-      bindingField: 'temperature',
-    },
-    {
-      id: 'thingmark-1',
-      type: 'thingmark',
-      name: 'thingMark-1 (Cell #4)',
-      label: 'ThingMark: EQUIP-CYL-8821',
-      position: [-0.38, -0.18, 0.0],
-      rotation: [0, 0, 0],
-      scale: 1.0,
-      bindingField: 'none',
-    },
-  ];
+  const handleLoadTargetTemplate = (targetType: VuforiaTargetType) => {
+    const proj = vuforiaProjectService.getOrCreateProjectForTargetType(targetType);
+    currentProject = proj;
+    projectName = proj.name;
+    augmentations = proj.augmentations ? [...proj.augmentations] : vuforiaProjectService.generateTemplateAugmentations(proj.template);
+    selectedElementId = augmentations[0]?.id || 'model-1';
 
-  let selectedElementId = '3dlabel-1';
+    const matchedTarget = vuforiaTargetManagerService.getTargets().find((t) => t.type === targetType);
+    if (matchedTarget) {
+      activeTarget = matchedTarget;
+      vuforiaTargetManagerService.setActiveTarget(matchedTarget.id);
+    }
+
+    const mIdx = models.findIndex((m) => m.id === proj.associatedModelId);
+    activeModelIndex = mIdx >= 0 ? mIdx : 0;
+    activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+
+    const overlayEl = container.querySelector('#vf-html-overlay');
+    if (overlayEl) overlayEl.innerHTML = '';
+
+    rebuild3DSceneGeometry();
+    rebuild3DPinAnchors();
+    toastMessage = `✓ Loaded Ready-to-Run AR Template: "${proj.name}"`;
+    renderUI();
+  };
+
+  // Real Dynamic Augmentations List (Authorable in 3D Scene - loaded from active project)
+  let augmentations: VuforiaAugmentation[] = currentProject.augmentations
+    ? [...currentProject.augmentations]
+    : vuforiaProjectService.generateTemplateAugmentations(currentProject.template);
+
+  if (!currentProject.augmentations) {
+    currentProject.augmentations = [...augmentations];
+    vuforiaProjectService.saveActiveProject(currentProject);
+  }
+
+  let selectedElementId = augmentations[0]?.id || 'model-1';
   let isWireframeActive = true;
   let activePerspective: 'iso' | 'front' | 'top' = 'iso';
   let activeTool: 'select' | 'move' | 'rotate' | 'scale' = 'move';
@@ -231,8 +213,155 @@ export function renderVuforiaStudioView(
       modelMeshGroup.remove(modelMeshGroup.children[0]);
     }
 
-    if (activeModelIndex === 0) {
-      // Build authentic procedural hydraulic cylinder parts
+    if (currentProject.template === 'cylinder_target' || activeTarget.type === 'cylinder_target') {
+      // 1. CYLINDER TARGET: HONED BORE PRESSURE PIPE & VESSEL
+      const pipeGeo = new CylinderGeometry(0.09, 0.09, 0.65, 32, 1, false);
+      const pipeMat = new MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.25 });
+      const pipeMesh = new Mesh(pipeGeo, pipeMat);
+      pipeMesh.rotation.z = Math.PI / 2;
+      modelMeshGroup.add(pipeMesh);
+
+      // Flange collars on both ends
+      const flgGeo = new CylinderGeometry(0.14, 0.14, 0.04, 32);
+      const flgMat = new MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.3 });
+      const flg1 = new Mesh(flgGeo, flgMat);
+      flg1.rotation.z = Math.PI / 2;
+      flg1.position.set(-0.31, 0, 0);
+      modelMeshGroup.add(flg1);
+
+      const flg2 = new Mesh(flgGeo, flgMat);
+      flg2.rotation.z = Math.PI / 2;
+      flg2.position.set(0.31, 0, 0);
+      modelMeshGroup.add(flg2);
+
+      // Circumferential Weld Bead (NDT Datum)
+      const weldGeo = new TorusGeometry(0.092, 0.008, 16, 32);
+      const weldMat = new MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.35 });
+      const weld = new Mesh(weldGeo, weldMat);
+      weld.rotation.y = Math.PI / 2;
+      weld.position.set(0.05, 0, 0);
+      modelMeshGroup.add(weld);
+
+    } else if (currentProject.template === 'multi_target' || activeTarget.type === 'multi_target') {
+      // 2. MULTI-TARGET (BOX): HEAVY-DUTY INDUSTRIAL SHIPPING CRATE
+      const boxGeo = new BoxGeometry(0.48, 0.34, 0.30);
+      const boxMat = new MeshStandardMaterial({ color: 0x1e293b, metalness: 0.4, roughness: 0.6 });
+      const boxMesh = new Mesh(boxGeo, boxMat);
+      modelMeshGroup.add(boxMesh);
+
+      // Metal reinforced corner edge brackets
+      const edgeMat = new MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.8, roughness: 0.3 });
+      const topEdge1 = new Mesh(new BoxGeometry(0.50, 0.02, 0.02), edgeMat);
+      topEdge1.position.set(0, 0.17, 0.15);
+      modelMeshGroup.add(topEdge1);
+
+      const topEdge2 = new Mesh(new BoxGeometry(0.50, 0.02, 0.02), edgeMat);
+      topEdge2.position.set(0, 0.17, -0.15);
+      modelMeshGroup.add(topEdge2);
+
+      // Heavy-duty steel strap bands
+      const strapMat = new MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.2 });
+      const strap1 = new Mesh(new BoxGeometry(0.03, 0.35, 0.31), strapMat);
+      strap1.position.set(-0.12, 0, 0);
+      modelMeshGroup.add(strap1);
+
+      const strap2 = new Mesh(new BoxGeometry(0.03, 0.35, 0.31), strapMat);
+      strap2.position.set(0.12, 0, 0);
+      modelMeshGroup.add(strap2);
+
+    } else if (currentProject.template === 'area_target' || activeTarget.type === 'area_target') {
+      // 3. AREA TARGET: ASSEMBLY BAY 3 FACILITY CELL
+      const floorGeo = new BoxGeometry(1.2, 0.02, 0.8);
+      const floorMat = new MeshStandardMaterial({ color: 0x0f172a, metalness: 0.3, roughness: 0.8 });
+      const floor = new Mesh(floorGeo, floorMat);
+      floor.position.set(0, -0.2, 0);
+      modelMeshGroup.add(floor);
+
+      // Workstation bench 1
+      const benchGeo = new BoxGeometry(0.35, 0.16, 0.22);
+      const benchMat = new MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6, roughness: 0.4 });
+      const bench = new Mesh(benchGeo, benchMat);
+      bench.position.set(-0.35, -0.11, 0);
+      modelMeshGroup.add(bench);
+
+      // CNC Lathe machine block 2
+      const latheGeo = new BoxGeometry(0.38, 0.24, 0.26);
+      const latheMat = new MeshStandardMaterial({ color: 0x334155, metalness: 0.7, roughness: 0.3 });
+      const lathe = new Mesh(latheGeo, latheMat);
+      lathe.position.set(0.32, -0.07, 0);
+      modelMeshGroup.add(lathe);
+
+      // Overhead Crane Beam (Safety envelope)
+      const craneGeo = new BoxGeometry(1.1, 0.04, 0.06);
+      const craneMat = new MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.3 });
+      const crane = new Mesh(craneGeo, craneMat);
+      crane.position.set(0, 0.32, 0);
+      modelMeshGroup.add(crane);
+
+    } else if (currentProject.template === 'vumark' || activeTarget.type === 'vumark' || activeModel.id === 'model-robotic-flange-04') {
+      // 4. VUMARK OPTICAL: 6-AXIS TOOLING FLANGE WITH OPTICAL FIDUCIAL RING
+      const flangeGeo = new CylinderGeometry(0.16, 0.16, 0.04, 32);
+      const flangeMat = new MeshStandardMaterial({ color: 0x475569, metalness: 0.85, roughness: 0.25 });
+      const flange = new Mesh(flangeGeo, flangeMat);
+      flange.rotation.x = Math.PI / 2;
+      modelMeshGroup.add(flange);
+
+      // Concentric VuMark Disc
+      const vumarkDiscGeo = new CylinderGeometry(0.12, 0.12, 0.005, 32);
+      const vumarkDiscMat = new MeshStandardMaterial({ color: 0x0284c7, metalness: 0.5, roughness: 0.2 });
+      const vumarkDisc = new Mesh(vumarkDiscGeo, vumarkDiscMat);
+      vumarkDisc.rotation.x = Math.PI / 2;
+      vumarkDisc.position.set(0, 0, 0.024);
+      modelMeshGroup.add(vumarkDisc);
+
+      // Center Spindle Shaft
+      const spindleGeo = new CylinderGeometry(0.04, 0.04, 0.18, 24);
+      const spindleMat = new MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.15 });
+      const spindle = new Mesh(spindleGeo, spindleMat);
+      spindle.rotation.x = Math.PI / 2;
+      spindle.position.set(0, 0, 0.1);
+      modelMeshGroup.add(spindle);
+
+    } else if (currentProject.template === 'image_target' || activeTarget.type === 'image_target' || activeModel.id === 'model-valve-manifold-02') {
+      // 5. SINGLE IMAGE TARGET: ELECTRICAL PANEL & MANIFOLD ENCLOSURE
+      const panelGeo = new BoxGeometry(0.44, 0.32, 0.08);
+      const panelMat = new MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.5 });
+      const panel = new Mesh(panelGeo, panelMat);
+      modelMeshGroup.add(panel);
+
+      const termGeo = new BoxGeometry(0.36, 0.04, 0.03);
+      const termMat = new MeshStandardMaterial({ color: 0x0284c7, metalness: 0.7, roughness: 0.3 });
+      const term1 = new Mesh(termGeo, termMat);
+      term1.position.set(0, 0.08, 0.05);
+      modelMeshGroup.add(term1);
+
+      const term2 = new Mesh(termGeo, termMat);
+      term2.position.set(0, -0.06, 0.05);
+      modelMeshGroup.add(term2);
+
+    } else if (activeModel.id === 'model-centrifugal-pump-03') {
+      // CENTRIFUGAL SLURRY PUMP
+      const casingGeo = new TorusGeometry(0.16, 0.08, 20, 36);
+      const casingMat = new MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6, roughness: 0.4 });
+      const casingMesh = new Mesh(casingGeo, casingMat);
+      casingMesh.rotation.x = Math.PI / 2;
+      modelMeshGroup.add(casingMesh);
+
+      const suctionGeo = new CylinderGeometry(0.065, 0.065, 0.22, 24);
+      const nozzleMat = new MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.8, roughness: 0.3 });
+      const suctionMesh = new Mesh(suctionGeo, nozzleMat);
+      suctionMesh.position.set(0, 0, 0.1);
+      suctionMesh.rotation.x = Math.PI / 2;
+      modelMeshGroup.add(suctionMesh);
+
+      const dischargeGeo = new CylinderGeometry(0.048, 0.048, 0.2, 24);
+      const dischargeMesh = new Mesh(dischargeGeo, nozzleMat);
+      dischargeMesh.position.set(0.16, 0.14, 0);
+      dischargeMesh.rotation.z = -Math.PI / 6;
+      modelMeshGroup.add(dischargeMesh);
+
+    } else {
+      // 0. MODEL TARGET: MODULAR HEAVY-DUTY HYDRAULIC CYLINDER
       const barrel = createCylinderBarrel();
       barrel.position.set(-0.15, 0, 0);
       modelMeshGroup.add(barrel);
@@ -244,19 +373,6 @@ export function renderVuforiaStudioView(
       const cap = createEndCap();
       cap.position.set(0.18, 0, 0);
       modelMeshGroup.add(cap);
-    } else {
-      // Generic CAD Assembly with components
-      const baseGeo = new CylinderGeometry(0.1, 0.1, 0.6, 24);
-      const baseMat = new MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.8, roughness: 0.3 });
-      const baseMesh = new Mesh(baseGeo, baseMat);
-      baseMesh.rotation.z = Math.PI / 2;
-      modelMeshGroup.add(baseMesh);
-
-      const headGeo = new BoxGeometry(0.18, 0.18, 0.18);
-      const headMat = new MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.5, roughness: 0.4 });
-      const headMesh = new Mesh(headGeo, headMat);
-      headMesh.position.set(0.35, 0, 0);
-      modelMeshGroup.add(headMesh);
     }
 
     // Apply current wireframe mode
@@ -386,12 +502,22 @@ export function renderVuforiaStudioView(
                 <span style="font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
                   📁 PROJECT
                 </span>
-                <button id="vf-btn-new-project" class="btn btn-primary btn-sm" style="padding: 2px 8px; font-size: 10px; font-weight: 700; gap: 4px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000;" title="Create New Vuforia Studio Project">
+                <button id="vf-btn-new-project" data-testid="vf-btn-new-project" class="btn btn-primary btn-sm" style="padding: 2px 8px; font-size: 10px; font-weight: 700; gap: 4px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000;" title="Create New Vuforia Studio Project">
                   <span>➕</span> New Project
                 </button>
               </div>
+              <!-- Project Switcher Dropdown -->
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <select id="vf-select-active-project" data-testid="vf-select-active-project" class="form-select" style="font-size: 11px; padding: 4px 6px; width: 100%; background: #0b1728; border: 1px solid #1e3a5f; border-radius: 4px; color: #38bdf8; font-weight: 700;" title="Switch active Vuforia project">
+                  ${vuforiaProjectService.getAllProjects().map((p) => `
+                    <option value="${p.id}" ${p.id === currentProject.id ? 'selected' : ''}>
+                      📂 ${p.name.length > 22 ? p.name.slice(0, 22) + '...' : p.name}
+                    </option>
+                  `).join('')}
+                </select>
+              </div>
               <div style="position: relative; display: flex; align-items: center;">
-                <input id="vf-input-project-name" type="text" class="form-input" value="${projectName}" placeholder="Project Name..." style="font-size: 11px; font-weight: 700; color: #fff; padding: 4px 24px 4px 8px; width: 100%; background: #0b1728; border: 1px solid #1e3a5f; border-radius: 4px;" title="Click to edit project name" />
+                <input id="vf-input-project-name" data-testid="vf-input-project-name" type="text" class="form-input" value="${projectName}" placeholder="Project Name..." style="font-size: 11px; font-weight: 700; color: #fff; padding: 4px 24px 4px 8px; width: 100%; background: #0b1728; border: 1px solid #1e3a5f; border-radius: 4px;" title="Click to edit project name" />
                 <span style="position: absolute; right: 8px; font-size: 11px; color: #64748b; pointer-events: none;" title="Editable">✏️</span>
               </div>
             </div>
@@ -440,7 +566,17 @@ export function renderVuforiaStudioView(
 
                         <!-- Dynamic 3D Augmentations in Tree -->
                         <div style="padding-left: 12px; display: flex; flex-direction: column; gap: 2px;">
-                          ${augmentations
+                          ${augmentations.length === 0
+                            ? `
+                            <div style="padding: 10px 8px; text-align: center; background: rgba(56, 189, 248, 0.04); border: 1px dashed rgba(56, 189, 248, 0.25); border-radius: 6px; margin: 4px 0;">
+                              <div style="font-size: 14px; margin-bottom: 2px;">📄</div>
+                              <div style="font-size: 11px; font-weight: 700; color: #38bdf8;">Blank Spatial Canvas</div>
+                              <div style="font-size: 10px; color: #94a3b8; margin-top: 2px; line-height: 1.3;">
+                                Clean slate. Click widgets in toolbar above to add 3D annotations.
+                              </div>
+                            </div>
+                            `
+                            : augmentations
                             .map((aug) => {
                               const isSel = aug.id === selectedElementId;
                               const icon =
@@ -601,6 +737,16 @@ export function renderVuforiaStudioView(
                 </div>
                 <button id="vf-btn-zoom-fit" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 10px; border-radius: 4px;" title="Fit Camera to Model">⛶ Fit</button>
                 <button id="vf-btn-zoom-reset" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 10px; border-radius: 4px;" title="Reset Orbit">↺ Reset</button>
+
+                <span style="width: 1px; height: 16px; background: #1e3a5f;"></span>
+
+                <button id="vf-btn-preview-ar" data-testid="vf-btn-preview-ar" class="btn btn-amber btn-sm" style="padding: 2px 9px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; border-radius: 4px; display: flex; align-items: center; gap: 4px; cursor: pointer;" title="Launch this project in AR Passthrough Mode">
+                  <span>👓</span> Run AR
+                </button>
+
+                <button id="vf-btn-help-guide" data-testid="vf-btn-help-guide" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; border-radius: 4px; cursor: pointer;" title="Vuforia Studio & AR Experience User Guide">
+                  <span>❓</span> Help
+                </button>
               </div>
             </div>
           </div>
@@ -1044,6 +1190,7 @@ export function renderVuforiaStudioView(
           if (selectedElementId === id) {
             selectedElementId = augmentations[0]?.id || 'model-1';
           }
+          vuforiaProjectService.saveProjectAugmentations(augmentations);
           rebuild3DPinAnchors();
           renderUI();
         }
@@ -1134,12 +1281,14 @@ export function renderVuforiaStudioView(
           openVuforiaTargetManagerModal({
             initialTab: 'add_target',
             onTargetActivated: handleTargetActivated,
+            onLoadTargetTemplate: handleLoadTargetTemplate,
           });
           return;
         } else if (widgetType === 'model_target' || widgetType === 'spatial_target' || widgetType === 'thingmark') {
           openVuforiaTargetManagerModal({
             initialTab: 'database',
             onTargetActivated: handleTargetActivated,
+            onLoadTargetTemplate: handleLoadTargetTemplate,
           });
           return;
         } else if (widgetType === '3dlabel') {
@@ -1259,6 +1408,7 @@ export function renderVuforiaStudioView(
           toastMessage = `✓ Synchronized ThingWorx Digital Twin stream!`;
         }
 
+        vuforiaProjectService.saveProjectAugmentations(augmentations);
         rebuild3DPinAnchors();
         renderUI();
 
@@ -1274,6 +1424,7 @@ export function renderVuforiaStudioView(
       openVuforiaTargetManagerModal({
         initialTab: 'add_target',
         onTargetActivated: handleTargetActivated,
+        onLoadTargetTemplate: handleLoadTargetTemplate,
       });
     });
 
@@ -1281,6 +1432,7 @@ export function renderVuforiaStudioView(
       openVuforiaTargetManagerModal({
         initialTab: 'database',
         onTargetActivated: handleTargetActivated,
+        onLoadTargetTemplate: handleLoadTargetTemplate,
       });
     });
 
@@ -1288,7 +1440,41 @@ export function renderVuforiaStudioView(
       openVuforiaTargetManagerModal({
         initialTab: 'database',
         onTargetActivated: handleTargetActivated,
+        onLoadTargetTemplate: handleLoadTargetTemplate,
       });
+    });
+
+    // Project Switcher Dropdown
+    container.querySelector('#vf-select-active-project')?.addEventListener('change', (e) => {
+      const projId = (e.target as HTMLSelectElement).value;
+      const switched = vuforiaProjectService.switchActiveProject(projId);
+      if (switched) {
+        currentProject = switched;
+        projectName = switched.name;
+
+        // Sync active target according to project
+        const matchedTarget = vuforiaTargetManagerService.getTargets().find((t) => t.id === switched.targetId || t.type === switched.targetType || t.type === switched.template);
+        if (matchedTarget) {
+          activeTarget = matchedTarget;
+          vuforiaTargetManagerService.setActiveTarget(matchedTarget.id);
+        }
+
+        const mIdx = models.findIndex((m) => m.id === switched.associatedModelId);
+        activeModelIndex = mIdx >= 0 ? mIdx : 0;
+        activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+        augmentations = switched.augmentations
+          ? [...switched.augmentations]
+          : vuforiaProjectService.generateTemplateAugmentations(switched.template);
+        selectedElementId = augmentations[0]?.id || 'model-1';
+
+        const overlayEl = container.querySelector('#vf-html-overlay');
+        if (overlayEl) overlayEl.innerHTML = '';
+
+        rebuild3DSceneGeometry();
+        rebuild3DPinAnchors();
+        toastMessage = `✓ Switched to project: "${switched.name}"`;
+        renderUI();
+      }
     });
 
     // Project Name Editing
@@ -1298,8 +1484,7 @@ export function renderVuforiaStudioView(
       currentProject = vuforiaProjectService.updateProjectName(val);
       projectName = currentProject.name;
       toastMessage = `✓ Project renamed to "${projectName}"`;
-      const toastEl = container.querySelector('#vf-toast-msg');
-      if (toastEl) toastEl.textContent = toastMessage;
+      renderUI();
     });
 
     inputProjectName?.addEventListener('keydown', (e) => {
@@ -1314,13 +1499,18 @@ export function renderVuforiaStudioView(
         onProjectCreated: ({ project, augmentations: newAugs, modelIndex }) => {
           currentProject = project;
           projectName = project.name;
-          augmentations = newAugs;
+          augmentations = [...newAugs];
           selectedElementId = augmentations[0]?.id || 'model-1';
           activeModelIndex = modelIndex;
           activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+
+          // Clear floating overlay immediately
+          const overlayEl = container.querySelector('#vf-html-overlay');
+          if (overlayEl) overlayEl.innerHTML = '';
+
           rebuild3DSceneGeometry();
           rebuild3DPinAnchors();
-          toastMessage = `✓ Created new project: "${project.name}"`;
+          toastMessage = `✓ Created new project: "${project.name}" (${project.template})`;
           renderUI();
         },
       });
@@ -1335,6 +1525,7 @@ export function renderVuforiaStudioView(
     container.querySelector('#vf-btn-remove-selected')?.addEventListener('click', () => {
       augmentations = augmentations.filter((a) => a.id !== selectedElementId);
       selectedElementId = augmentations[0]?.id || 'model-1';
+      vuforiaProjectService.saveProjectAugmentations(augmentations);
       rebuild3DPinAnchors();
       renderUI();
     });
@@ -1344,12 +1535,14 @@ export function renderVuforiaStudioView(
     if (selectedAug) {
       container.querySelector('#vf-input-label')?.addEventListener('input', (e) => {
         selectedAug.label = (e.target as HTMLInputElement).value;
+        vuforiaProjectService.saveProjectAugmentations(augmentations);
         const nameItem = container.querySelector(`.vf-tree-item[data-id="${selectedAug.id}"] span:last-child`);
         if (nameItem) nameItem.textContent = selectedAug.name;
       });
 
       container.querySelector('#vf-input-scale')?.addEventListener('change', (e) => {
         selectedAug.scale = Number((e.target as HTMLInputElement).value) || 1.0;
+        vuforiaProjectService.saveProjectAugmentations(augmentations);
       });
 
       const posX = container.querySelector('#vf-input-pos-x') as HTMLInputElement;
@@ -1362,6 +1555,7 @@ export function renderVuforiaStudioView(
           Number(posY.value) || 0,
           Number(posZ.value) || 0,
         ];
+        vuforiaProjectService.saveProjectAugmentations(augmentations);
         rebuild3DPinAnchors();
       };
 
@@ -1379,6 +1573,7 @@ export function renderVuforiaStudioView(
           Number(rotY.value) || 0,
           Number(rotZ.value) || 0,
         ];
+        vuforiaProjectService.saveProjectAugmentations(augmentations);
       };
 
       rotX?.addEventListener('input', updateRot);
@@ -1387,6 +1582,7 @@ export function renderVuforiaStudioView(
 
       container.querySelector('#vf-select-binding')?.addEventListener('change', (e) => {
         selectedAug.bindingField = (e.target as HTMLSelectElement).value as any;
+        vuforiaProjectService.saveProjectAugmentations(augmentations);
         renderUI();
       });
     }
@@ -1395,6 +1591,8 @@ export function renderVuforiaStudioView(
     container.querySelector('#vf-select-resource')?.addEventListener('change', (e) => {
       activeModelIndex = Number((e.target as HTMLSelectElement).value);
       activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+      currentProject.associatedModelId = activeModel.id;
+      vuforiaProjectService.saveActiveProject(currentProject);
       rebuild3DSceneGeometry();
       renderUI();
     });
@@ -1406,18 +1604,23 @@ export function renderVuforiaStudioView(
 
     // Top action buttons
     container.querySelector('#vf-btn-preview-ar')?.addEventListener('click', () => {
-      onNavigate('xr-player', 'proc-hyd-cyl-01');
-      import('../StudioApp').then(({ studioApp }) => {
-        studioApp.toggleARPassthroughMode(true);
+      onNavigate('xr-player', 'proc-hyd-cyl-01', 'ar');
+    });
+
+    container.querySelector('#vf-btn-help-guide')?.addEventListener('click', () => {
+      openVuforiaHelpModal({
+        onLaunchAR: () => {
+          onNavigate('xr-player', 'proc-hyd-cyl-01', 'ar');
+        },
       });
     });
 
     container.querySelector('#vf-btn-launch-xr')?.addEventListener('click', () => {
-      onNavigate('xr-player', 'proc-hyd-cyl-01');
+      onNavigate('xr-player', 'proc-hyd-cyl-01', 'vr');
     });
 
     container.querySelector('#vf-btn-deploy-quest')?.addEventListener('click', () => {
-      onNavigate('xr-player', 'proc-hyd-cyl-01');
+      onNavigate('xr-player', 'proc-hyd-cyl-01', 'ar');
     });
 
     container.querySelector('#vf-btn-export-pkg')?.addEventListener('click', () => {

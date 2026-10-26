@@ -124,6 +124,133 @@ export const SEED_HYDRAULIC_MODEL: ModelAsset = {
   ],
 };
 
+export const SEED_VALVE_MANIFOLD_MODEL: ModelAsset = {
+  id: 'model-valve-manifold-02',
+  name: 'High-Pressure Hydraulic Manifold Block',
+  category: 'Valves & Manifolds',
+  format: 'procedural',
+  createdAt: '2026-10-05T09:00:00.000Z',
+  components: [
+    {
+      id: 'manifold_block',
+      name: 'CNC Monoblock Manifold Core',
+      partCode: 'MNF-BLK-01',
+      material: 'Anodized 6061-T6 Aluminum',
+      nominalWeightKg: 8.5,
+      isInspectable: true,
+      defaultPosition: [0, 0, 0],
+      explodedPosition: [0, 0, 0],
+    },
+    {
+      id: 'spool_valve',
+      name: 'Proportional Cartridge Valve Spool',
+      partCode: 'VLV-SPL-02',
+      material: 'Hardened Tool Steel',
+      nominalWeightKg: 1.2,
+      isInspectable: true,
+      defaultPosition: [-0.12, 0.22, 0],
+      explodedPosition: [-0.12, 0.45, 0],
+    },
+    {
+      id: 'pressure_flange',
+      name: 'High-Pressure SAE 6000 PSI Flange',
+      partCode: 'FLG-PR-03',
+      material: 'Forged Carbon Steel',
+      nominalWeightKg: 2.1,
+      isInspectable: true,
+      defaultPosition: [0.26, 0, 0],
+      explodedPosition: [0.55, 0, 0],
+    },
+  ],
+};
+
+export const SEED_CENTRIFUGAL_PUMP_MODEL: ModelAsset = {
+  id: 'model-centrifugal-pump-03',
+  name: 'Industrial Centrifugal Slurry Pump',
+  category: 'Pumps & Turbines',
+  format: 'procedural',
+  createdAt: '2026-10-08T11:30:00.000Z',
+  components: [
+    {
+      id: 'volute_casing',
+      name: 'Spiral Volute Pump Housing',
+      partCode: 'PMP-VOL-01',
+      material: 'ASTM A48 Cast Iron',
+      nominalWeightKg: 14.2,
+      isInspectable: true,
+      defaultPosition: [0, 0, 0],
+      explodedPosition: [0, 0, 0],
+    },
+    {
+      id: 'impeller',
+      name: 'Semi-Open Vortex Impeller',
+      partCode: 'PMP-IMP-02',
+      material: 'CF8M Stainless Steel',
+      nominalWeightKg: 3.8,
+      isInspectable: true,
+      defaultPosition: [0, 0, 0.12],
+      explodedPosition: [0, 0, 0.38],
+    },
+    {
+      id: 'shaft_coupling',
+      name: 'Flexible Jaw Shaft Coupling',
+      partCode: 'PMP-CPL-03',
+      material: 'Forged Steel & Nitrile',
+      nominalWeightKg: 1.9,
+      isInspectable: false,
+      defaultPosition: [0.18, 0.15, 0],
+      explodedPosition: [0.4, 0.35, 0],
+    },
+  ],
+};
+
+export const SEED_ROBOTIC_FLANGE_MODEL: ModelAsset = {
+  id: 'model-robotic-flange-04',
+  name: '6-Axis Robot End-Effector Tooling Flange',
+  category: 'Robotics & Automation',
+  format: 'procedural',
+  createdAt: '2026-10-14T14:00:00.000Z',
+  components: [
+    {
+      id: 'tool_plate',
+      name: 'ISO 9409-1-50-4-M6 Tool Mounting Plate',
+      partCode: 'ROB-PLT-01',
+      material: 'Aviation 7075-T6 Aluminum',
+      nominalWeightKg: 1.1,
+      isInspectable: true,
+      defaultPosition: [0, 0, 0],
+      explodedPosition: [0, 0, -0.2],
+    },
+    {
+      id: 'gripper_jaws',
+      name: 'Pneumatic Parallel Gripping Jaws',
+      partCode: 'ROB-GRP-02',
+      material: 'Hardened Anodized Alloy',
+      nominalWeightKg: 1.8,
+      isInspectable: true,
+      defaultPosition: [0, 0, 0.1],
+      explodedPosition: [0, 0, 0.35],
+    },
+    {
+      id: 'sensor_bracket',
+      name: 'Optical Sensor Alignment Bracket',
+      partCode: 'ROB-BKT-03',
+      material: 'Carbon Fiber Reinforced Polymer',
+      nominalWeightKg: 0.3,
+      isInspectable: false,
+      defaultPosition: [0.06, 0, 0.22],
+      explodedPosition: [0.2, 0, 0.3],
+    },
+  ],
+};
+
+export const SEED_ALL_MODELS: ModelAsset[] = [
+  SEED_HYDRAULIC_MODEL,
+  SEED_VALVE_MANIFOLD_MODEL,
+  SEED_CENTRIFUGAL_PUMP_MODEL,
+  SEED_ROBOTIC_FLANGE_MODEL,
+];
+
 // Seed: Hydraulic Cylinder Procedure Steps
 export const SEED_CYLINDER_STEPS: ProcedureStep[] = [
   {
@@ -527,12 +654,30 @@ export class LocalStorageRepository implements IStorageRepository {
   }
 
   public getModels(): ModelAsset[] {
-    if (!this.isBrowser) return [SEED_HYDRAULIC_MODEL];
+    if (!this.isBrowser) return [...SEED_ALL_MODELS];
     try {
       const data = localStorage.getItem(STORAGE_KEYS.MODELS);
-      return data ? JSON.parse(data) : [SEED_HYDRAULIC_MODEL];
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingIds = new Set(parsed.map((m: any) => m.id));
+          let changed = false;
+          for (const seed of SEED_ALL_MODELS) {
+            if (!existingIds.has(seed.id)) {
+              parsed.push(seed);
+              changed = true;
+            }
+          }
+          if (changed) {
+            localStorage.setItem(STORAGE_KEYS.MODELS, JSON.stringify(parsed));
+          }
+          return parsed;
+        }
+      }
+      localStorage.setItem(STORAGE_KEYS.MODELS, JSON.stringify(SEED_ALL_MODELS));
+      return [...SEED_ALL_MODELS];
     } catch {
-      return [SEED_HYDRAULIC_MODEL];
+      return [...SEED_ALL_MODELS];
     }
   }
 

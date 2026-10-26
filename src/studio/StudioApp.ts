@@ -21,6 +21,7 @@ import type { AssemblySystem } from '../xr/assembly-system';
 import { voiceCommandService } from '../xr/voice-command-service';
 import { barcodeScannerService } from './services/barcode-scanner-service';
 import { plantEnvironmentService } from './services/plant-environment-service';
+import { openVuforiaHelpModal } from './views/VuforiaHelpModal';
 
 export class StudioApp {
   private currentView: string = 'dashboard';
@@ -30,6 +31,7 @@ export class StudioApp {
   private isXRMode = false;
   private isARPassthroughActive = false;
   private arMediaStream: MediaStream | null = null;
+  private previousView: string = 'vuforia';
 
   constructor() {}
 
@@ -45,6 +47,9 @@ export class StudioApp {
   }
 
   public navigateTo(viewId: string, param?: string, mode?: 'vr' | 'ar'): void {
+    if (viewId !== 'xr-player') {
+      this.previousView = viewId;
+    }
     this.currentView = viewId;
     this.viewParam = param;
 
@@ -254,7 +259,7 @@ export class StudioApp {
     if (!content) return;
     content.innerHTML = '';
 
-    const nav = (v: string, p?: string) => this.navigateTo(v, p);
+    const nav = (v: string, p?: string, m?: 'vr' | 'ar') => this.navigateTo(v, p, m);
 
     switch (this.currentView) {
       case 'dashboard':
@@ -357,6 +362,9 @@ export class StudioApp {
           <button id="header-btn-export-pkg" class="btn btn-secondary btn-sm" title="Export Vuforia Target Database Package" style="padding: 4px 8px; font-size: 11px;">
             <span>💾</span> Export DB
           </button>
+          <button id="header-btn-help" class="btn btn-secondary btn-sm" title="Vuforia Studio & AR Experience User Guide" style="padding: 4px 8px; font-size: 11px;">
+            <span>❓</span> Help
+          </button>
           <div class="user-profile-badge" title="Logged in as System Admin">
             <span class="user-avatar">S</span>
             <span class="user-name" style="font-size: 11px;">Admin</span>
@@ -413,11 +421,19 @@ export class StudioApp {
       });
     });
 
+    layout.querySelector('#header-btn-help')?.addEventListener('click', () => {
+      openVuforiaHelpModal({
+        onLaunchAR: () => {
+          this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'ar');
+        },
+      });
+    });
+
     // Wire XR Player overlay controls
     const xrExitBtn = document.getElementById('xr-btn-exit-to-studio');
     xrExitBtn?.addEventListener('click', () => {
       this.exitXRPlayerMode();
-      this.navigateTo('dashboard');
+      this.navigateTo(this.previousView || 'vuforia');
     });
 
     const xrARToggleBtn = document.getElementById('xr-btn-hud-ar-toggle');

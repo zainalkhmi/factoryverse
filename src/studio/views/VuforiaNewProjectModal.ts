@@ -90,7 +90,7 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
               ${VUFORIA_PROJECT_TEMPLATES.map((tmpl) => {
                 const isSelected = tmpl.id === selectedTemplate;
                 return `
-                  <div class="vf-npm-template-card" data-template="${tmpl.id}" style="padding: 12px; background: ${isSelected ? '#10243e' : '#070e18'}; border: 2px solid ${isSelected ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
+                  <div class="vf-npm-template-card" data-template="${tmpl.id}" data-testid="vf-template-${tmpl.id}" style="padding: 12px; background: ${isSelected ? '#10243e' : '#070e18'}; border: 2px solid ${isSelected ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                       <span style="font-size: 18px;">${tmpl.icon}</span>
                       <strong style="font-size: 12px; color: ${isSelected ? '#fff' : '#cbd5e1'};">${tmpl.title}</strong>
@@ -134,7 +134,7 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
           <button id="vf-npm-btn-cancel" class="btn btn-secondary btn-sm" style="padding: 6px 14px;">
             Cancel
           </button>
-          <button id="vf-npm-btn-create" class="btn btn-primary btn-sm" style="padding: 6px 18px; font-weight: 700; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000;">
+          <button id="vf-npm-btn-create" data-testid="vf-npm-btn-create" class="btn btn-primary btn-sm" style="padding: 6px 18px; font-weight: 700; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000;">
             ⚡ Create Project
           </button>
         </div>
@@ -177,7 +177,7 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
       const { project, augmentations } = vuforiaProjectService.createNewProject({
         name: finalName,
         template: selectedTemplate,
-        modelId: chosenModel ? chosenModel.id : 'proc-hyd-cyl-01',
+        modelId: chosenModel ? chosenModel.id : 'model-hydraulic-cyl-01',
       });
 
       options.onProjectCreated({

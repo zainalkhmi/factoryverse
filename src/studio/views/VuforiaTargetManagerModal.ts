@@ -21,6 +21,7 @@ import { storageRepository } from '../../storage/storage-repository';
 export interface VuforiaTargetManagerModalOptions {
   initialTab?: 'database' | 'add_target';
   onTargetActivated?: (target: VuforiaTarget) => void;
+  onLoadTargetTemplate?: (targetType: VuforiaTargetType) => void;
   onClose?: () => void;
 }
 
@@ -90,6 +91,33 @@ export function openVuforiaTargetManagerModal(options: VuforiaTargetManagerModal
       multi_target: 'Multi-Target',
       vumark: 'VuMark Target',
       area_target: 'Area Target',
+    };
+
+    const templateDetails: Record<VuforiaTargetType, { title: string; desc: string }> = {
+      model_target: {
+        title: 'Heavy Machine Assembly & QA Digital Twin',
+        desc: '3D CAD mesh edge tracking for hydraulic cylinder assembly, live hydraulic line pressure gauge (211 Bar), fluid temp (63 °C), and bore datum tolerance (±0.10 mm).',
+      },
+      image_target: {
+        title: 'Electrical Control Cabinet & SOP Placard',
+        desc: '5-star planar placard tracking, 24V DC bus load monitor, cabinet operating temp gauge, and LOTO compliance warning.',
+      },
+      cylinder_target: {
+        title: 'Honed Bore Pipe & Pressure Vessel NDT',
+        desc: 'Cylindrical curved surface tracking for ultrasonic pipe wall thickness (6.35 mm), skin temp, and circumferential weld inspection.',
+      },
+      multi_target: {
+        title: 'Parts Shipping Crate & Pallet QA',
+        desc: '6-face box tracking, BOM parts packing manifest (12/12), pallet gross weight gauge (245 kg), and TiltWatch shock datum.',
+      },
+      vumark: {
+        title: 'Serialized Asset Overhaul & Maintenance',
+        desc: 'High-density optical VuMark tracking (EQUIP-CYL-8821), operating hours run (1,840 hrs), and spindle vibration monitor.',
+      },
+      area_target: {
+        title: 'Assembly Bay 3 Facility Navigation & Safety',
+        desc: '3D LiDAR facility tracking, workstation waypoints, overhead crane safety clearance envelope (3.8m), and evacuation routes.',
+      },
     };
 
     modal.innerHTML = `
@@ -295,71 +323,116 @@ export function openVuforiaTargetManagerModal(options: VuforiaTargetManagerModal
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
                   
                   <!-- Type 1: Model Target -->
-                  <div class="vtm-type-card ${selectedType === 'model_target' ? 'active' : ''}" data-type="model_target" style="padding: 14px; background: ${selectedType === 'model_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'model_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                      <span style="font-size: 20px;">📐</span>
-                      <strong style="color: #fff; font-size: 13px;">Model Target</strong>
+                  <div class="vtm-type-card ${selectedType === 'model_target' ? 'active' : ''}" data-type="model_target" style="padding: 14px; background: ${selectedType === 'model_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'model_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 20px;">📐</span>
+                        <strong style="color: #fff; font-size: 13px;">Model Target</strong>
+                      </div>
+                      <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0; line-height: 1.4;">
+                        3D CAD model tracking for physical equipment, machines, and tools with edge contrast and Guide Views.
+                      </p>
                     </div>
-                    <p style="font-size: 11px; color: #94a3b8; margin: 0; line-height: 1.4;">
-                      3D CAD model tracking for physical equipment, machines, and tools with edge contrast and Guide Views.
-                    </p>
+                    <button class="vtm-btn-load-template btn btn-amber btn-sm" data-type="model_target" style="width: 100%; font-size: 10px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer;" title="Load ready-to-run Model Target AR template">
+                      ⚡ Load Ready Template
+                    </button>
                   </div>
 
                   <!-- Type 2: Image Target -->
-                  <div class="vtm-type-card ${selectedType === 'image_target' ? 'active' : ''}" data-type="image_target" style="padding: 14px; background: ${selectedType === 'image_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'image_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                      <span style="font-size: 20px;">🖼️</span>
-                      <strong style="color: #fff; font-size: 13px;">Single Image Target</strong>
+                  <div class="vtm-type-card ${selectedType === 'image_target' ? 'active' : ''}" data-type="image_target" style="padding: 14px; background: ${selectedType === 'image_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'image_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 20px;">🖼️</span>
+                        <strong style="color: #fff; font-size: 13px;">Single Image Target</strong>
+                      </div>
+                      <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0; line-height: 1.4;">
+                        Flat planar image target (placard, poster, nameplate) evaluated with star rating (1–5 Stars).
+                      </p>
                     </div>
-                    <p style="font-size: 11px; color: #94a3b8; margin: 0; line-height: 1.4;">
-                      Flat planar image target (placard, poster, nameplate) evaluated with star rating (1–5 Stars).
-                    </p>
+                    <button class="vtm-btn-load-template btn btn-amber btn-sm" data-type="image_target" style="width: 100%; font-size: 10px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer;" title="Load ready-to-run Single Image Target AR template">
+                      ⚡ Load Ready Template
+                    </button>
                   </div>
 
                   <!-- Type 3: Cylinder Target -->
-                  <div class="vtm-type-card ${selectedType === 'cylinder_target' ? 'active' : ''}" data-type="cylinder_target" style="padding: 14px; background: ${selectedType === 'cylinder_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'cylinder_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                      <span style="font-size: 20px;">🥫</span>
-                      <strong style="color: #fff; font-size: 13px;">Cylinder Target</strong>
+                  <div class="vtm-type-card ${selectedType === 'cylinder_target' ? 'active' : ''}" data-type="cylinder_target" style="padding: 14px; background: ${selectedType === 'cylinder_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'cylinder_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 20px;">🥫</span>
+                        <strong style="color: #fff; font-size: 13px;">Cylinder Target</strong>
+                      </div>
+                      <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0; line-height: 1.4;">
+                        Cylindrical and conical tracking for hydraulic barrels, pipes, tubes, canisters, and bottles.
+                      </p>
                     </div>
-                    <p style="font-size: 11px; color: #94a3b8; margin: 0; line-height: 1.4;">
-                      Cylindrical and conical tracking for hydraulic barrels, pipes, tubes, canisters, and bottles.
-                    </p>
+                    <button class="vtm-btn-load-template btn btn-amber btn-sm" data-type="cylinder_target" style="width: 100%; font-size: 10px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer;" title="Load ready-to-run Cylinder Target AR template">
+                      ⚡ Load Ready Template
+                    </button>
                   </div>
 
                   <!-- Type 4: Multi-Target -->
-                  <div class="vtm-type-card ${selectedType === 'multi_target' ? 'active' : ''}" data-type="multi_target" style="padding: 14px; background: ${selectedType === 'multi_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'multi_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                      <span style="font-size: 20px;">📦</span>
-                      <strong style="color: #fff; font-size: 13px;">Multi-Target (Box)</strong>
+                  <div class="vtm-type-card ${selectedType === 'multi_target' ? 'active' : ''}" data-type="multi_target" style="padding: 14px; background: ${selectedType === 'multi_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'multi_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 20px;">📦</span>
+                        <strong style="color: #fff; font-size: 13px;">Multi-Target (Box)</strong>
+                      </div>
+                      <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0; line-height: 1.4;">
+                        3D hexahedral geometric box with tracking images on multiple faces for all-around recognition.
+                      </p>
                     </div>
-                    <p style="font-size: 11px; color: #94a3b8; margin: 0; line-height: 1.4;">
-                      3D hexahedral geometric box with tracking images on multiple faces for all-around recognition.
-                    </p>
+                    <button class="vtm-btn-load-template btn btn-amber btn-sm" data-type="multi_target" style="width: 100%; font-size: 10px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer;" title="Load ready-to-run Multi-Target Box AR template">
+                      ⚡ Load Ready Template
+                    </button>
                   </div>
 
                   <!-- Type 5: VuMark -->
-                  <div class="vtm-type-card ${selectedType === 'vumark' ? 'active' : ''}" data-type="vumark" style="padding: 14px; background: ${selectedType === 'vumark' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'vumark' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                      <span style="font-size: 20px;">🎯</span>
-                      <strong style="color: #fff; font-size: 13px;">VuMark Optical Target</strong>
+                  <div class="vtm-type-card ${selectedType === 'vumark' ? 'active' : ''}" data-type="vumark" style="padding: 14px; background: ${selectedType === 'vumark' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'vumark' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 20px;">🎯</span>
+                        <strong style="color: #fff; font-size: 13px;">VuMark Optical Target</strong>
+                      </div>
+                      <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0; line-height: 1.4;">
+                        Customizable branded optical marker encoding unique serial number instance payload.
+                      </p>
                     </div>
-                    <p style="font-size: 11px; color: #94a3b8; margin: 0; line-height: 1.4;">
-                      Customizable branded optical marker encoding unique serial number instance payload.
-                    </p>
+                    <button class="vtm-btn-load-template btn btn-amber btn-sm" data-type="vumark" style="width: 100%; font-size: 10px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer;" title="Load ready-to-run VuMark AR template">
+                      ⚡ Load Ready Template
+                    </button>
                   </div>
 
                   <!-- Type 6: Area Target -->
-                  <div class="vtm-type-card ${selectedType === 'area_target' ? 'active' : ''}" data-type="area_target" style="padding: 14px; background: ${selectedType === 'area_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'area_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                      <span style="font-size: 20px;">🌐</span>
-                      <strong style="color: #fff; font-size: 13px;">Area Target (Spatial)</strong>
+                  <div class="vtm-type-card ${selectedType === 'area_target' ? 'active' : ''}" data-type="area_target" style="padding: 14px; background: ${selectedType === 'area_target' ? '#10243e' : '#0c182a'}; border: 2px solid ${selectedType === 'area_target' ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 20px;">🌐</span>
+                        <strong style="color: #fff; font-size: 13px;">Area Target (Spatial)</strong>
+                      </div>
+                      <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0; line-height: 1.4;">
+                        Environment 3D spatial scan for facility assembly bay or machine cell spatial tracking.
+                      </p>
                     </div>
-                    <p style="font-size: 11px; color: #94a3b8; margin: 0; line-height: 1.4;">
-                      Environment 3D spatial scan for facility assembly bay or machine cell spatial tracking.
-                    </p>
+                    <button class="vtm-btn-load-template btn btn-amber btn-sm" data-type="area_target" style="width: 100%; font-size: 10px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer;" title="Load ready-to-run Area Target AR template">
+                      ⚡ Load Ready Template
+                    </button>
                   </div>
 
+                </div>
+
+                <!-- Ready-to-Run Manufacturing AR Template Available Banner -->
+                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 12px 16px; margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #f59e0b; font-size: 13px;">
+                      <span>⚡</span> Ready Manufacturing AR Template: ${templateDetails[selectedType].title}
+                    </div>
+                    <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
+                      ${templateDetails[selectedType].desc}
+                    </div>
+                  </div>
+                  <button id="vtm-btn-deploy-template" class="btn btn-amber btn-sm" style="font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 7px 16px; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+                    🚀 Load & Run AR Template
+                  </button>
                 </div>
               </div>
 
@@ -484,6 +557,9 @@ export function openVuforiaTargetManagerModal(options: VuforiaTargetManagerModal
               <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid #1e3a5f;">
                 <button id="vtm-btn-cancel-add" class="btn btn-secondary btn-sm" style="padding: 8px 16px;">
                   Cancel
+                </button>
+                <button id="vtm-btn-load-template-footer" class="btn btn-amber btn-sm" style="padding: 8px 16px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none;">
+                  ⚡ Load Ready Template
                 </button>
                 <button id="vtm-btn-save-db" class="btn btn-secondary btn-sm" style="padding: 8px 16px;">
                   Add to Database Only
@@ -763,6 +839,30 @@ export function openVuforiaTargetManagerModal(options: VuforiaTargetManagerModal
       });
 
       options.onTargetActivated?.(added);
+      modal.remove();
+    });
+
+    // Direct template buttons on cards
+    modal.querySelectorAll('.vtm-btn-load-template').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const type = (e.currentTarget as HTMLElement).getAttribute('data-type') as VuforiaTargetType;
+        if (type) {
+          options.onLoadTargetTemplate?.(type);
+          modal.remove();
+        }
+      });
+    });
+
+    // Deploy template banner button
+    modal.querySelector('#vtm-btn-deploy-template')?.addEventListener('click', () => {
+      options.onLoadTargetTemplate?.(selectedType);
+      modal.remove();
+    });
+
+    // Deploy template footer button
+    modal.querySelector('#vtm-btn-load-template-footer')?.addEventListener('click', () => {
+      options.onLoadTargetTemplate?.(selectedType);
       modal.remove();
     });
   };

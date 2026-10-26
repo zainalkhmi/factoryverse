@@ -53,24 +53,6 @@
   },
   "nodes": [
     {
-      "content": {
-        "asset": "workstation-bench",
-        "castShadow": true,
-        "receiveShadow": true,
-        "type": "asset"
-      },
-      "framingRole": "support",
-      "id": "workstation-bench",
-      "name": "Industrial Assembly Bench",
-      "transform": {
-        "position": [
-          0,
-          0,
-          -1.1
-        ]
-      }
-    },
-    {
       "components": {
         "AssemblyPart": {
           "isAssembled": true,
@@ -194,7 +176,24 @@
     },
     {
       "components": {
-        "RayInteractable": {}
+        "RayInteractable": {},
+        "com.iwsdk.components.DirectionalLight": {
+          "castShadow": false,
+          "color": [
+            0.7176470588235294,
+            0.20392156862745098,
+            0.20392156862745098,
+            1
+          ],
+          "intensity": 1,
+          "shadowBias": 0,
+          "shadowCameraFar": 100,
+          "shadowCameraNear": 0.1,
+          "shadowCameraSize": 10,
+          "shadowMapSize": "256",
+          "shadowNormalBias": 0,
+          "shadowRadius": 1
+        }
       },
       "content": {
         "asset": "training-panel",
@@ -290,8 +289,25 @@
           ]
         }
       },
+      "content": {
+        "asset": "workstation-bench",
+        "type": "asset"
+      },
       "id": "fill-light",
-      "name": "Fill Light"
+      "name": "Fill Light",
+      "transform": {
+        "position": [
+          -0.474,
+          0.1316,
+          0.3971
+        ],
+        "rotationDeg": [
+          0,
+          0,
+          0
+        ],
+        "scale": 1
+      }
     }
   ],
   "resources": {},
