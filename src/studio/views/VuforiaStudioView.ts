@@ -82,7 +82,7 @@ export function renderVuforiaStudioView(
 
   const handleTargetActivated = (target: VuforiaTarget) => {
     activeTarget = target;
-    if (target.associatedModelId) {
+    if (currentProject.template !== 'blank' && currentProject.associatedModelId !== 'none' && target.associatedModelId) {
       const mIdx = models.findIndex((m) => m.id === target.associatedModelId);
       if (mIdx >= 0) {
         activeModelIndex = mIdx;
@@ -212,6 +212,16 @@ export function renderVuforiaStudioView(
     // Clear existing children
     while (modelMeshGroup.children.length > 0) {
       modelMeshGroup.remove(modelMeshGroup.children[0]);
+    }
+
+    // 0. BLANK / EMPTY CANVAS:
+    // If project has no model or is a blank canvas project, keep canvas completely clean!
+    if (
+      currentProject.template === 'blank' ||
+      currentProject.associatedModelId === 'none' ||
+      !currentProject.associatedModelId
+    ) {
+      return;
     }
 
     if (currentProject.template === 'cylinder_target' || activeTarget.type === 'cylinder_target') {
@@ -573,9 +583,21 @@ export function renderVuforiaStudioView(
                       </div>
 
                       <div style="padding-left: 12px; margin-top: 4px; display: flex; flex-direction: column; gap: 3px;">
-                        <div class="vf-tree-item ${selectedElementId === 'model-1' ? 'active' : ''}" data-id="model-1" style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: ${selectedElementId === 'model-1' ? '#38bdf8' : '#cbd5e1'}; padding: 3px 6px; border-radius: 4px; background: ${selectedElementId === 'model-1' ? 'rgba(56, 189, 248, 0.14)' : 'transparent'};">
-                          <span>▾ ⚙️ model-1 (${activeModel.name.slice(0, 14)}...)</span>
-                        </div>
+                        ${
+                          currentProject.template !== 'blank' &&
+                          currentProject.associatedModelId &&
+                          currentProject.associatedModelId !== 'none'
+                            ? `
+                          <div class="vf-tree-item ${selectedElementId === 'model-1' ? 'active' : ''}" data-id="model-1" style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: ${selectedElementId === 'model-1' ? '#38bdf8' : '#cbd5e1'}; padding: 3px 6px; border-radius: 4px; background: ${selectedElementId === 'model-1' ? 'rgba(56, 189, 248, 0.14)' : 'transparent'};">
+                            <span>▾ ⚙️ model-1 (${activeModel ? activeModel.name.slice(0, 14) : 'Model'}...)</span>
+                          </div>
+                          `
+                            : `
+                          <div style="display: flex; align-items: center; gap: 6px; color: #64748b; padding: 3px 6px; font-size: 10px; font-style: italic;">
+                            <span>⚙️ (No 3D Model Attached — Blank Canvas)</span>
+                          </div>
+                          `
+                        }
 
                         <!-- Dynamic 3D Augmentations in Tree -->
                         <div style="padding-left: 12px; display: flex; flex-direction: column; gap: 2px;">
@@ -723,7 +745,7 @@ export function renderVuforiaStudioView(
                 <span style="width: 1px; height: 16px; background: #1e3a5f;"></span>
 
                 <div style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
-                  <span>Selected: <strong style="color: #38bdf8;">${selectedAug ? selectedAug.name : 'CAD Model Root'}</strong></span>
+                  <span>Selected: <strong style="color: #38bdf8;">${selectedAug ? selectedAug.name : (currentProject.template === 'blank' || currentProject.associatedModelId === 'none' ? 'Empty Canvas (No Model)' : 'CAD Model Root')}</strong></span>
                 </div>
               </div>
 
@@ -872,10 +894,13 @@ export function renderVuforiaStudioView(
                 <div style="margin-bottom: 12px;">
                   <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px;">→) CAD Model Resource</label>
                   <select id="vf-select-resource" class="form-select" style="font-size: 11px; padding: 4px 8px; width: 100%;">
+                    <option value="none" ${currentProject.associatedModelId === 'none' ? 'selected' : ''}>
+                      None (Empty Canvas — Blank Slate)
+                    </option>
                     ${models
                       .map(
                         (m, idx) => `
-                      <option value="${idx}" ${idx === activeModelIndex ? 'selected' : ''}>
+                      <option value="${idx}" ${currentProject.associatedModelId !== 'none' && idx === activeModelIndex ? 'selected' : ''}>
                         ${m.name} (${m.format.toUpperCase()})
                       </option>
                     `
@@ -1464,6 +1489,9 @@ export function renderVuforiaStudioView(
       if (switched) {
         currentProject = switched;
         projectName = switched.name;
+        if (switched.template === 'blank') {
+          currentProject.associatedModelId = 'none';
+        }
 
         // Sync active target according to project
         const matchedTarget = vuforiaTargetManagerService.getTargets().find((t) => t.id === switched.targetId || t.type === switched.targetType || t.type === switched.template);
@@ -1472,13 +1500,13 @@ export function renderVuforiaStudioView(
           vuforiaTargetManagerService.setActiveTarget(matchedTarget.id);
         }
 
-        const mIdx = models.findIndex((m) => m.id === switched.associatedModelId);
+        const mIdx = models.findIndex((m) => m.id === currentProject.associatedModelId);
         activeModelIndex = mIdx >= 0 ? mIdx : 0;
         activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
         augmentations = switched.augmentations
           ? [...switched.augmentations]
           : vuforiaProjectService.generateTemplateAugmentations(switched.template);
-        selectedElementId = augmentations[0]?.id || 'model-1';
+        selectedElementId = augmentations[0]?.id || (currentProject.associatedModelId === 'none' ? '' : 'model-1');
 
         const overlayEl = container.querySelector('#vf-html-overlay');
         if (overlayEl) overlayEl.innerHTML = '';
@@ -1519,9 +1547,12 @@ export function renderVuforiaStudioView(
         onProjectCreated: ({ project, augmentations: newAugs, modelIndex }) => {
           currentProject = project;
           projectName = project.name;
+          if (project.template === 'blank' || project.associatedModelId === 'none') {
+            currentProject.associatedModelId = 'none';
+          }
           augmentations = [...newAugs];
-          selectedElementId = augmentations[0]?.id || 'model-1';
-          activeModelIndex = modelIndex;
+          selectedElementId = augmentations[0]?.id || (currentProject.associatedModelId === 'none' ? '' : 'model-1');
+          activeModelIndex = modelIndex >= 0 ? modelIndex : 0;
           activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
 
           // Sync active target according to project template/target
@@ -1552,7 +1583,11 @@ export function renderVuforiaStudioView(
         onProjectUpdated: ({ project: updated, modelIndex }) => {
           currentProject = updated;
           projectName = updated.name;
-          activeModelIndex = modelIndex;
+          if (updated.template === 'blank' || updated.associatedModelId === 'none') {
+            currentProject.associatedModelId = 'none';
+          }
+          selectedElementId = augmentations[0]?.id || (currentProject.associatedModelId === 'none' ? '' : 'model-1');
+          activeModelIndex = modelIndex >= 0 ? modelIndex : 0;
           activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
 
           const matchedTarget = vuforiaTargetManagerService.getTargets().find(
@@ -1571,7 +1606,11 @@ export function renderVuforiaStudioView(
         onProjectDeleted: (remaining) => {
           currentProject = remaining;
           projectName = remaining.name;
+          if (remaining.template === 'blank' || remaining.associatedModelId === 'none') {
+            currentProject.associatedModelId = 'none';
+          }
           augmentations = remaining.augmentations ? [...remaining.augmentations] : vuforiaProjectService.generateTemplateAugmentations(remaining.template);
+          selectedElementId = augmentations[0]?.id || (currentProject.associatedModelId === 'none' ? '' : 'model-1');
           const mIdx = models.findIndex((m) => m.id === remaining.associatedModelId);
           activeModelIndex = mIdx >= 0 ? mIdx : 0;
           activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
@@ -1707,9 +1746,17 @@ export function renderVuforiaStudioView(
 
     // CAD Resource Model Selector
     container.querySelector('#vf-select-resource')?.addEventListener('change', (e) => {
-      activeModelIndex = Number((e.target as HTMLSelectElement).value);
-      activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
-      currentProject.associatedModelId = activeModel.id;
+      const val = (e.target as HTMLSelectElement).value;
+      if (val === 'none') {
+        currentProject.associatedModelId = 'none';
+      } else {
+        activeModelIndex = Number(val);
+        activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+        currentProject.associatedModelId = activeModel.id;
+        if (currentProject.template === 'blank') {
+          currentProject.template = 'model_target';
+        }
+      }
       vuforiaProjectService.saveActiveProject(currentProject);
       rebuild3DSceneGeometry();
       renderUI();

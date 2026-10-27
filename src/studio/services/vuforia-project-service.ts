@@ -74,10 +74,10 @@ export const VUFORIA_PROJECT_TEMPLATES: ProjectTemplateInfo[] = [
   {
     id: 'blank',
     title: 'Blank Spatial Canvas',
-    description: 'Clean slate without default annotations, ready for custom AR authoring.',
+    description: 'Clean slate without default annotations or preloaded 3D CAD models.',
     icon: '📄',
     targetType: 'model_target',
-    defaultModelId: 'model-hydraulic-cyl-01',
+    defaultModelId: 'none',
     defaultTargetId: 'vt-model-cyl-01',
   },
 ];
@@ -212,6 +212,17 @@ export const SEED_VUFORIA_PROJECTS: VuforiaProject[] = [
     dateCreated: '2026-10-25',
     dateModified: '2026-10-25',
   },
+  {
+    id: 'vfp-blank-canvas-07',
+    name: 'Blank Spatial Canvas (Empty Scene)',
+    description: 'Clean spatial canvas without 3D models or annotations, ready for custom authoring.',
+    template: 'blank',
+    targetType: 'model_target',
+    associatedModelId: 'none',
+    targetId: 'vt-model-cyl-01',
+    dateCreated: '2026-10-25',
+    dateModified: '2026-10-25',
+  },
 ];
 
 export class VuforiaProjectService {
@@ -237,6 +248,9 @@ export class VuforiaProjectService {
         const stored = localStorage.getItem(STORAGE_KEY_ACTIVE_PROJECT);
         if (stored) {
           const parsed = JSON.parse(stored);
+          if (parsed.template === 'blank' && (!parsed.associatedModelId || parsed.associatedModelId === 'model-hydraulic-cyl-01')) {
+            parsed.associatedModelId = 'none';
+          }
           if (!parsed.augmentations) {
             parsed.augmentations = this.generateTemplateAugmentations(parsed.template);
           }
@@ -287,6 +301,10 @@ export class VuforiaProjectService {
     const list = this.getAllProjects();
     const target = list.find((p) => p.id === projectId);
     if (!target) return null;
+
+    if (target.template === 'blank' && (!target.associatedModelId || target.associatedModelId === 'model-hydraulic-cyl-01')) {
+      target.associatedModelId = 'none';
+    }
 
     if (!target.augmentations) {
       target.augmentations = this.generateTemplateAugmentations(target.template);
@@ -469,7 +487,9 @@ export class VuforiaProjectService {
       template: params.template,
       targetType: tmplInfo?.targetType || 'model_target',
       targetId: tmplInfo?.defaultTargetId || 'vt-model-cyl-01',
-      associatedModelId: params.modelId || tmplInfo?.defaultModelId || 'model-hydraulic-cyl-01',
+      associatedModelId: params.template === 'blank'
+        ? (params.modelId && params.modelId !== 'none' && params.modelId !== 'model-hydraulic-cyl-01' ? params.modelId : 'none')
+        : (params.modelId !== undefined ? params.modelId : (tmplInfo?.defaultModelId || 'model-hydraulic-cyl-01')),
       dateCreated: now,
       dateModified: now,
       augmentations: JSON.parse(JSON.stringify(augmentations)),

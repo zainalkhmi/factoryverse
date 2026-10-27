@@ -110,8 +110,11 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
               Base 3D CAD Assembly Resource
             </label>
             <select id="vf-npm-select-model" class="form-select" style="font-size: 12px; padding: 7px 10px; width: 100%; background: #060d17; border: 1px solid #1e3a5f; border-radius: 6px; color: #fff;">
+              <option value="none" ${selectedTemplate === 'blank' ? 'selected' : ''}>
+                None (Clean Slate — No 3D CAD Model)
+              </option>
               ${models.map((m, idx) => `
-                <option value="${idx}" ${idx === selectedModelIdx ? 'selected' : ''}>
+                <option value="${m.id}" ${selectedTemplate !== 'blank' && idx === selectedModelIdx ? 'selected' : ''}>
                   ${m.name} (${m.format.toUpperCase()}) — ${m.category}
                 </option>
               `).join('')}
@@ -158,6 +161,8 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
       projectName = (e.target as HTMLInputElement).value;
     });
 
+    const selectModel = modal.querySelector('#vf-npm-select-model') as HTMLSelectElement;
+
     const updateTemplateSelectionUI = (tmplId: VuforiaProjectTemplate) => {
       selectedTemplate = tmplId;
       modal.querySelectorAll('.vf-npm-template-card').forEach((card) => {
@@ -173,12 +178,16 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
       const summaryEl = modal.querySelector('#vf-npm-summary-text');
       if (summaryEl) {
         if (tmplId === 'blank') {
-          summaryEl.textContent = 'Creates an empty spatial canvas without preloaded annotations, ready for full custom authoring.';
+          if (selectModel) selectModel.value = 'none';
+          summaryEl.textContent = 'Creates an empty spatial canvas without 3D models or annotations, ready for full custom authoring.';
         } else if (tmplId === 'assembly_qa') {
+          if (selectModel && selectModel.value === 'none') selectModel.value = models[0]?.id || 'model-hydraulic-cyl-01';
           summaryEl.textContent = 'Pre-loads CAD datum points, seal groove tolerances, and dimensional verification annotations.';
         } else if (tmplId === 'maintenance_iot') {
+          if (selectModel && selectModel.value === 'none') selectModel.value = models[0]?.id || 'model-hydraulic-cyl-01';
           summaryEl.textContent = 'Pre-loads live ThingWorx IoT telemetry bindings (hydraulic pressure, oil temp, vibration).';
         } else if (tmplId === 'sop_instruction') {
+          if (selectModel && selectModel.value === 'none') selectModel.value = models[0]?.id || 'model-hydraulic-cyl-01';
           summaryEl.textContent = 'Pre-loads operator SOP step-by-step procedures and safety lockout waypoint markers.';
         }
       }
@@ -191,27 +200,30 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
       });
     });
 
-    const selectModel = modal.querySelector('#vf-npm-select-model') as HTMLSelectElement;
     selectModel?.addEventListener('change', (e) => {
-      selectedModelIdx = Number((e.target as HTMLSelectElement).value);
+      const val = (e.target as HTMLSelectElement).value;
+      const idx = models.findIndex((m) => m.id === val);
+      selectedModelIdx = idx >= 0 ? idx : 0;
     });
 
     modal.querySelector('#vf-npm-btn-create')?.addEventListener('click', () => {
       const liveName = inputName ? inputName.value.trim() : projectName.trim();
       const finalName = liveName || `Industrial AR Project #${Math.floor(100 + Math.random() * 900)}`;
-      const liveModelIdx = selectModel ? Number(selectModel.value) : selectedModelIdx;
-      const chosenModel = models[liveModelIdx] || models[0];
+      const chosenModelId = selectedTemplate === 'blank'
+        ? (selectModel && selectModel.value !== 'none' && selectModel.value !== models[0]?.id ? selectModel.value : 'none')
+        : (selectModel ? selectModel.value : models[0]?.id || 'model-hydraulic-cyl-01');
+      const chosenIdx = models.findIndex((m) => m.id === chosenModelId);
 
       const { project, augmentations } = vuforiaProjectService.createNewProject({
         name: finalName,
         template: selectedTemplate,
-        modelId: chosenModel ? chosenModel.id : 'model-hydraulic-cyl-01',
+        modelId: chosenModelId,
       });
 
       options.onProjectCreated({
         project,
         augmentations,
-        modelIndex: liveModelIdx,
+        modelIndex: chosenIdx >= 0 ? chosenIdx : -1,
       });
 
       modal.remove();

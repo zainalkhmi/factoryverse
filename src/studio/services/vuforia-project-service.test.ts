@@ -55,6 +55,7 @@ describe('VuforiaProjectService', () => {
 
     expect(project.name).toBe('Clean Slate Project');
     expect(project.template).toBe('blank');
+    expect(project.associatedModelId).toBe('none');
     expect(augmentations.length).toBe(0);
   });
 

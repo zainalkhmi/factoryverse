@@ -92,8 +92,11 @@ export function openVuforiaEditProjectModal(options: VuforiaEditProjectModalOpti
             Target 3D CAD Assembly Resource
           </label>
           <select id="vf-epm-select-model" class="form-select" style="font-size: 12px; padding: 7px 10px; width: 100%; background: #060d17; border: 1px solid #1e3a5f; border-radius: 6px; color: #fff;">
-            ${models.map((m, idx) => `
-              <option value="${idx}" ${idx === modelIdx ? 'selected' : ''}>
+            <option value="none" ${current.associatedModelId === 'none' ? 'selected' : ''}>
+              None (Clean Slate — No 3D CAD Model)
+            </option>
+            ${models.map((m) => `
+              <option value="${m.id}" ${m.id === current.associatedModelId ? 'selected' : ''}>
                 ${m.name} (${m.format.toUpperCase()}) — ${m.category}
               </option>
             `).join('')}
@@ -189,20 +192,23 @@ export function openVuforiaEditProjectModal(options: VuforiaEditProjectModalOpti
 
     const newName = nameInput ? nameInput.value.trim() : current.name;
     const newDesc = descInput ? descInput.value.trim() : current.description;
-    const selectedModelIndex = modelSelect ? Number(modelSelect.value) : modelIdx;
-    const chosenModel = models[selectedModelIndex] || models[0];
     const newTemplate = (templateSelect ? templateSelect.value : current.template) as VuforiaProjectTemplate;
+    const chosenVal = modelSelect ? modelSelect.value : current.associatedModelId;
+    const mIdx = models.findIndex((m) => m.id === chosenVal);
+    const chosenModelId = newTemplate === 'blank'
+      ? (chosenVal !== 'none' && chosenVal !== models[0]?.id && chosenVal !== 'model-hydraulic-cyl-01' ? chosenVal : 'none')
+      : (chosenVal === 'none' ? 'none' : (mIdx >= 0 ? models[mIdx].id : 'model-hydraulic-cyl-01'));
 
     const updated = vuforiaProjectService.updateProject(current.id, {
       name: newName || current.name,
       description: newDesc,
-      associatedModelId: chosenModel.id,
+      associatedModelId: chosenModelId,
       template: newTemplate,
     });
 
     options.onProjectUpdated({
       project: updated,
-      modelIndex: selectedModelIndex,
+      modelIndex: mIdx >= 0 ? mIdx : -1,
     });
 
     modal.remove();
