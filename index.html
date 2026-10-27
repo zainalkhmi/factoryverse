@@ -47,16 +47,25 @@
           </div>
         </div>
 
-        <div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="xr-btn-toggle-hud" class="btn btn-secondary btn-sm" title="Clean AR View: Show only 3D Canvas without HUD overlays">
+            <span>👁️</span> Clean 3D View
+          </button>
           <button id="xr-btn-exit-to-studio" class="btn btn-secondary">
             <span>←</span> Return to Studio
           </button>
         </div>
       </div>
 
+      <!-- Floating button to restore controls when in Clean 3D View -->
+      <button id="xr-btn-restore-hud" class="btn btn-secondary btn-sm" style="display: none; position: absolute; top: 16px; right: 20px; z-index: 70; background: rgba(11, 19, 30, 0.9); border: 1px solid var(--border-active); border-radius: 20px; padding: 6px 14px; font-weight: 600; cursor: pointer; backdrop-filter: blur(8px);">
+        <span>👁️</span> Show HUD & Controls
+      </button>
+
       <!-- XR Bottom Testing & Navigation Controls (Desktop IWER helper) -->
       <div class="xr-bottom-controls" style="z-index: 10;">
         <button id="xr-btn-hud-ar-toggle" class="btn btn-amber btn-sm">👓 Mode: VR Plant</button>
+        <button id="xr-btn-hud-clean-view" class="btn btn-secondary btn-sm" title="Clean 3D Canvas View">👁️ Clean 3D</button>
         <button id="xr-btn-hud-env" class="btn btn-secondary btn-sm">🏭 Plant: Bay 3</button>
         <button id="xr-btn-hud-cad-guide" class="btn btn-secondary btn-sm">📐 CAD Guide View</button>
         <button id="xr-btn-hud-scan" class="btn btn-secondary btn-sm">📷 Vuforia AR</button>

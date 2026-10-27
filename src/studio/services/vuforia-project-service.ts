@@ -224,7 +224,7 @@ export class VuforiaProjectService {
 
   public getActiveProject(): VuforiaProject {
     if (this.activeProjectCache) {
-      if (!this.activeProjectCache.augmentations || this.activeProjectCache.augmentations.length === 0) {
+      if (!this.activeProjectCache.augmentations) {
         this.activeProjectCache.augmentations = this.generateTemplateAugmentations(
           this.activeProjectCache.template
         );
@@ -237,7 +237,7 @@ export class VuforiaProjectService {
         const stored = localStorage.getItem(STORAGE_KEY_ACTIVE_PROJECT);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (!parsed.augmentations || parsed.augmentations.length === 0) {
+          if (!parsed.augmentations) {
             parsed.augmentations = this.generateTemplateAugmentations(parsed.template);
           }
           this.activeProjectCache = parsed;
@@ -288,12 +288,109 @@ export class VuforiaProjectService {
     const target = list.find((p) => p.id === projectId);
     if (!target) return null;
 
-    if (!target.augmentations || target.augmentations.length === 0) {
+    if (!target.augmentations) {
       target.augmentations = this.generateTemplateAugmentations(target.template);
     }
 
     this.saveActiveProject(target);
     return target;
+  }
+
+  public updateProject(projectId: string, updates: Partial<VuforiaProject>): VuforiaProject {
+    const list = this.getAllProjects();
+    const idx = list.findIndex((p) => p.id === projectId);
+    if (idx < 0) {
+      throw new Error(`Project with id "${projectId}" not found.`);
+    }
+
+    const current = list[idx];
+    const updated: VuforiaProject = {
+      ...current,
+      ...updates,
+      id: current.id, // ID is immutable
+      dateModified: new Date().toISOString().split('T')[0],
+    };
+
+    list[idx] = updated;
+    this.saveProjectsList(list);
+
+    if (this.activeProjectCache?.id === projectId) {
+      this.activeProjectCache = { ...updated };
+      if (this.isBrowser()) {
+        try {
+          localStorage.setItem(STORAGE_KEY_ACTIVE_PROJECT, JSON.stringify(this.activeProjectCache));
+        } catch (err) {
+          console.warn('Failed to save active project update to storage:', err);
+        }
+      }
+    }
+
+    return updated;
+  }
+
+  public importProject(raw: unknown): VuforiaProject {
+    if (!raw || typeof raw !== 'object') {
+      throw new Error('Invalid project file: expected a JSON object.');
+    }
+
+    const data = raw as any;
+
+    // Check if it's a factoryverse package containing projects or a single project
+    let projectPayload: any = data;
+    if (data.project && typeof data.project === 'object') {
+      projectPayload = data.project;
+    } else if (Array.isArray(data.projects) && data.projects.length > 0) {
+      projectPayload = data.projects[0];
+    } else if (data.activeProject && typeof data.activeProject === 'object') {
+      projectPayload = data.activeProject;
+    }
+
+    if (!projectPayload.name || typeof projectPayload.name !== 'string') {
+      throw new Error('Invalid project format: missing required "name" property.');
+    }
+
+    const now = new Date().toISOString().split('T')[0];
+    const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const list = this.getAllProjects();
+    const existingIndex = list.findIndex((p) => p.id === projectPayload.id);
+    const newId = existingIndex >= 0 || !projectPayload.id
+      ? `vfp-import-${Date.now().toString().slice(-6)}-${rand}`
+      : projectPayload.id;
+
+    const importedProject: VuforiaProject = {
+      id: newId,
+      name: projectPayload.name.trim(),
+      description: projectPayload.description || 'Imported Vuforia Studio Project',
+      template: projectPayload.template || 'blank',
+      associatedModelId: projectPayload.associatedModelId || 'model-hydraulic-cyl-01',
+      targetId: projectPayload.targetId || 'vt-model-cyl-01',
+      targetType: projectPayload.targetType || 'model_target',
+      dateCreated: projectPayload.dateCreated || now,
+      dateModified: now,
+      augmentations: Array.isArray(projectPayload.augmentations)
+        ? JSON.parse(JSON.stringify(projectPayload.augmentations))
+        : this.generateTemplateAugmentations(projectPayload.template || 'blank'),
+    };
+
+    this.saveActiveProject(importedProject);
+    return importedProject;
+  }
+
+  public exportProjectJSON(projectId?: string): { filename: string; json: string } {
+    const proj = projectId
+      ? this.getAllProjects().find((p) => p.id === projectId) || this.getActiveProject()
+      : this.getActiveProject();
+    const exportData = {
+      schemaVersion: '1.0.0',
+      exportType: 'factoryverse_vuforia_project',
+      exportedAt: new Date().toISOString(),
+      project: proj,
+    };
+    const sanitizedName = proj.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+    return {
+      filename: `${sanitizedName || 'vuforia-project'}.json`,
+      json: JSON.stringify(exportData, null, 2),
+    };
   }
 
   public getOrCreateProjectForTargetType(targetType: VuforiaTargetType): VuforiaProject {
@@ -841,7 +938,7 @@ export class VuforiaProjectService {
   }
 
   public getAllProjects(): VuforiaProject[] {
-    if (this.projectsListCache && this.projectsListCache.length >= 6) {
+    if (this.projectsListCache && this.projectsListCache.length > 0) {
       return this.projectsListCache;
     }
 
@@ -850,7 +947,7 @@ export class VuforiaProjectService {
         const stored = localStorage.getItem(STORAGE_KEY_PROJECT_LIST);
         if (stored) {
           const parsed: VuforiaProject[] = JSON.parse(stored);
-          if (parsed.length >= 6) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             this.projectsListCache = parsed;
             return parsed;
           }

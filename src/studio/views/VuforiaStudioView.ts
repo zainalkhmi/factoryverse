@@ -45,6 +45,7 @@ import {
   type VuforiaProject,
 } from '../services/vuforia-project-service';
 import { openVuforiaNewProjectModal } from './VuforiaNewProjectModal';
+import { openVuforiaEditProjectModal } from './VuforiaEditProjectModal';
 import { openVuforiaHelpModal } from './VuforiaHelpModal';
 
 export interface VuforiaAugmentation {
@@ -496,28 +497,37 @@ export function renderVuforiaStudioView(
               </div>
             </div>
 
-            <!-- Project Header with Editable Name & New Project Button -->
+            <!-- Project Header with Editable Name & Action Buttons -->
             <div style="padding: 10px 12px; background: #060e19; border-bottom: 1px solid #1e3a5f; display: flex; flex-direction: column; gap: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
                   📁 PROJECT
                 </span>
-                <button id="vf-btn-new-project" data-testid="vf-btn-new-project" class="btn btn-primary btn-sm" style="padding: 2px 8px; font-size: 10px; font-weight: 700; gap: 4px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000;" title="Create New Vuforia Studio Project">
-                  <span>➕</span> New Project
-                </button>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <button id="vf-btn-new-project" data-testid="vf-btn-new-project" class="btn btn-primary btn-sm" style="padding: 2px 7px; font-size: 10px; font-weight: 700; gap: 3px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #000;" title="Create New Vuforia Studio Project">
+                    <span>➕</span> New
+                  </button>
+                  <button id="vf-btn-edit-project" data-testid="vf-btn-edit-project" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 10px; font-weight: 600; gap: 3px; border-color: #1e3a5f; color: #cbd5e1;" title="Edit Active Project Details & CAD Resource">
+                    <span>✏️</span> Edit
+                  </button>
+                  <button id="vf-btn-import-project" data-testid="vf-btn-import-project" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 10px; font-weight: 600; gap: 3px; border-color: #1e3a5f; color: #cbd5e1;" title="Import Project from JSON file">
+                    <span>📥</span> Import
+                  </button>
+                  <input id="vf-file-import-project" type="file" accept=".json,application/json" style="display: none;" />
+                </div>
               </div>
               <!-- Project Switcher Dropdown -->
               <div style="display: flex; align-items: center; gap: 6px;">
                 <select id="vf-select-active-project" data-testid="vf-select-active-project" class="form-select" style="font-size: 11px; padding: 4px 6px; width: 100%; background: #0b1728; border: 1px solid #1e3a5f; border-radius: 4px; color: #38bdf8; font-weight: 700;" title="Switch active Vuforia project">
                   ${vuforiaProjectService.getAllProjects().map((p) => `
                     <option value="${p.id}" ${p.id === currentProject.id ? 'selected' : ''}>
-                      📂 ${p.name.length > 22 ? p.name.slice(0, 22) + '...' : p.name}
+                      📂 ${p.name.length > 24 ? p.name.slice(0, 24) + '...' : p.name}
                     </option>
                   `).join('')}
                 </select>
               </div>
               <div style="position: relative; display: flex; align-items: center;">
-                <input id="vf-input-project-name" data-testid="vf-input-project-name" type="text" class="form-input" value="${projectName}" placeholder="Project Name..." style="font-size: 11px; font-weight: 700; color: #fff; padding: 4px 24px 4px 8px; width: 100%; background: #0b1728; border: 1px solid #1e3a5f; border-radius: 4px;" title="Click to edit project name" />
+                <input id="vf-input-project-name" data-testid="vf-input-project-name" type="text" class="form-input" value="${projectName}" placeholder="Project Name..." style="font-size: 11px; font-weight: 700; color: #fff; padding: 4px 24px 4px 8px; width: 100%; background: #0b1728; border: 1px solid #1e3a5f; border-radius: 4px;" title="Click to rename project (Press Enter or unfocus to save)" />
                 <span style="position: absolute; right: 8px; font-size: 11px; color: #64748b; pointer-events: none;" title="Editable">✏️</span>
               </div>
             </div>
@@ -528,7 +538,10 @@ export function renderVuforiaStudioView(
                   ? `
                 <!-- Configuration Section -->
                 <div style="margin-bottom: 14px;">
-                  <div style="font-weight: 700; color: #38bdf8; font-size: 11px; margin-bottom: 6px;">▾ PROJECT CONFIGURATION</div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-weight: 700; color: #38bdf8; font-size: 11px;">▾ PROJECT CONFIGURATION</span>
+                    <button id="vf-btn-cfg-edit-project" class="btn btn-secondary btn-sm" style="padding: 1px 6px; font-size: 9px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);" title="Configure Project">Edit ↗</button>
+                  </div>
                   <div style="padding-left: 10px; display: flex; flex-direction: column; gap: 4px; color: #94a3b8; font-size: 11px;">
                     <div style="cursor: pointer;">• Theme: Industrial Dark</div>
                     <div style="cursor: pointer;">• Experience: ${currentProject.template.toUpperCase().replace('_', ' ')}</div>
@@ -1477,16 +1490,23 @@ export function renderVuforiaStudioView(
       }
     });
 
-    // Project Name Editing
+    // Project Name Inline Editing
     const inputProjectName = container.querySelector('#vf-input-project-name') as HTMLInputElement;
-    inputProjectName?.addEventListener('change', (e) => {
-      const val = (e.target as HTMLInputElement).value;
+    let isCommittingRename = false;
+    const commitProjectRename = () => {
+      if (isCommittingRename) return;
+      if (!inputProjectName) return;
+      const val = inputProjectName.value.trim();
+      if (!val || val === currentProject.name) return;
+      isCommittingRename = true;
       currentProject = vuforiaProjectService.updateProjectName(val);
       projectName = currentProject.name;
       toastMessage = `✓ Project renamed to "${projectName}"`;
       renderUI();
-    });
+    };
 
+    inputProjectName?.addEventListener('change', commitProjectRename);
+    inputProjectName?.addEventListener('blur', commitProjectRename);
     inputProjectName?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         inputProjectName.blur();
@@ -1504,16 +1524,114 @@ export function renderVuforiaStudioView(
           activeModelIndex = modelIndex;
           activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
 
+          // Sync active target according to project template/target
+          const matchedTarget = vuforiaTargetManagerService.getTargets().find(
+            (t) => t.id === project.targetId || t.type === project.targetType || t.type === project.template
+          );
+          if (matchedTarget) {
+            activeTarget = matchedTarget;
+            vuforiaTargetManagerService.setActiveTarget(matchedTarget.id);
+          }
+
           // Clear floating overlay immediately
           const overlayEl = container.querySelector('#vf-html-overlay');
           if (overlayEl) overlayEl.innerHTML = '';
 
           rebuild3DSceneGeometry();
           rebuild3DPinAnchors();
-          toastMessage = `✓ Created new project: "${project.name}" (${project.template})`;
+          toastMessage = `✓ Created new project: "${project.name}" (${project.template.toUpperCase().replace('_', ' ')})`;
           renderUI();
         },
       });
+    });
+
+    // Edit Project Modal Action
+    const handleOpenEditProject = () => {
+      openVuforiaEditProjectModal({
+        project: currentProject,
+        onProjectUpdated: ({ project: updated, modelIndex }) => {
+          currentProject = updated;
+          projectName = updated.name;
+          activeModelIndex = modelIndex;
+          activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+
+          const matchedTarget = vuforiaTargetManagerService.getTargets().find(
+            (t) => t.id === updated.targetId || t.type === updated.targetType || t.type === updated.template
+          );
+          if (matchedTarget) {
+            activeTarget = matchedTarget;
+            vuforiaTargetManagerService.setActiveTarget(matchedTarget.id);
+          }
+
+          rebuild3DSceneGeometry();
+          rebuild3DPinAnchors();
+          toastMessage = `✓ Project updated: "${updated.name}"`;
+          renderUI();
+        },
+        onProjectDeleted: (remaining) => {
+          currentProject = remaining;
+          projectName = remaining.name;
+          augmentations = remaining.augmentations ? [...remaining.augmentations] : vuforiaProjectService.generateTemplateAugmentations(remaining.template);
+          const mIdx = models.findIndex((m) => m.id === remaining.associatedModelId);
+          activeModelIndex = mIdx >= 0 ? mIdx : 0;
+          activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+          rebuild3DSceneGeometry();
+          rebuild3DPinAnchors();
+          toastMessage = `✓ Switched to remaining project: "${remaining.name}"`;
+          renderUI();
+        },
+      });
+    };
+
+    container.querySelector('#vf-btn-edit-project')?.addEventListener('click', handleOpenEditProject);
+    container.querySelector('#vf-btn-cfg-edit-project')?.addEventListener('click', handleOpenEditProject);
+
+    // Import Project Action
+    const btnImport = container.querySelector('#vf-btn-import-project');
+    const fileImportInput = container.querySelector('#vf-file-import-project') as HTMLInputElement;
+
+    btnImport?.addEventListener('click', () => {
+      fileImportInput?.click();
+    });
+
+    fileImportInput?.addEventListener('change', (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        try {
+          const content = loadEvt.target?.result as string;
+          const parsed = JSON.parse(content);
+          const imported = vuforiaProjectService.importProject(parsed);
+
+          currentProject = imported;
+          projectName = imported.name;
+          augmentations = imported.augmentations ? [...imported.augmentations] : [];
+          selectedElementId = augmentations[0]?.id || 'model-1';
+
+          const mIdx = models.findIndex((m) => m.id === imported.associatedModelId);
+          activeModelIndex = mIdx >= 0 ? mIdx : 0;
+          activeModel = models[activeModelIndex] || SEED_HYDRAULIC_MODEL;
+
+          const matchedTarget = vuforiaTargetManagerService.getTargets().find(
+            (t) => t.id === imported.targetId || t.type === imported.targetType || t.type === imported.template
+          );
+          if (matchedTarget) {
+            activeTarget = matchedTarget;
+            vuforiaTargetManagerService.setActiveTarget(matchedTarget.id);
+          }
+
+          rebuild3DSceneGeometry();
+          rebuild3DPinAnchors();
+          toastMessage = `✓ Successfully imported project: "${imported.name}"!`;
+          renderUI();
+        } catch (err: any) {
+          alert(`Failed to import project: ${err.message || 'Invalid JSON format'}`);
+        }
+      };
+      reader.readAsText(file);
+      fileImportInput.value = '';
     });
 
     container.querySelector('#vf-btn-add-aug-tree')?.addEventListener('click', () => {
@@ -1604,23 +1722,23 @@ export function renderVuforiaStudioView(
 
     // Top action buttons
     container.querySelector('#vf-btn-preview-ar')?.addEventListener('click', () => {
-      onNavigate('xr-player', 'proc-hyd-cyl-01', 'ar');
+      onNavigate('xr-player', undefined, 'ar');
     });
 
     container.querySelector('#vf-btn-help-guide')?.addEventListener('click', () => {
       openVuforiaHelpModal({
         onLaunchAR: () => {
-          onNavigate('xr-player', 'proc-hyd-cyl-01', 'ar');
+          onNavigate('xr-player', undefined, 'ar');
         },
       });
     });
 
     container.querySelector('#vf-btn-launch-xr')?.addEventListener('click', () => {
-      onNavigate('xr-player', 'proc-hyd-cyl-01', 'vr');
+      onNavigate('xr-player', undefined, 'vr');
     });
 
     container.querySelector('#vf-btn-deploy-quest')?.addEventListener('click', () => {
-      onNavigate('xr-player', 'proc-hyd-cyl-01', 'ar');
+      onNavigate('xr-player', undefined, 'ar');
     });
 
     container.querySelector('#vf-btn-export-pkg')?.addEventListener('click', () => {

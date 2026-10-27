@@ -22,18 +22,25 @@ import { voiceCommandService } from '../xr/voice-command-service';
 import { barcodeScannerService } from './services/barcode-scanner-service';
 import { plantEnvironmentService } from './services/plant-environment-service';
 import { openVuforiaHelpModal } from './views/VuforiaHelpModal';
+import { arRuntimeSyncService } from './services/ar-runtime-sync-service';
+import { vuforiaProjectService } from './services/vuforia-project-service';
 
 export class StudioApp {
   private currentView: string = 'dashboard';
   private viewParam?: string;
   private trainingEngine?: TrainingEngine;
   private assemblySystem?: AssemblySystem;
+  private world: any = null;
   private isXRMode = false;
   private isARPassthroughActive = false;
   private arMediaStream: MediaStream | null = null;
   private previousView: string = 'vuforia';
 
   constructor() {}
+
+  public setWorld(world: any): void {
+    this.world = world;
+  }
 
   public setXREngine(engine: TrainingEngine, assemblySys?: AssemblySystem): void {
     this.trainingEngine = engine;
@@ -69,6 +76,36 @@ export class StudioApp {
     this.exitXRPlayerMode();
     this.updateSidebarActive(viewId);
     this.renderCurrentView();
+  }
+
+  private isCleanCanvasMode = false;
+
+  public toggleCleanCanvasMode(forceState?: boolean): boolean {
+    const next = forceState !== undefined ? forceState : !this.isCleanCanvasMode;
+    this.isCleanCanvasMode = next;
+    const xrPlayerView = document.getElementById('xr-player-view');
+    const restoreBtn = document.getElementById('xr-btn-restore-hud');
+    const toggleBtn = document.getElementById('xr-btn-toggle-hud');
+    const hudCleanBtn = document.getElementById('xr-btn-hud-clean-view');
+
+    if (xrPlayerView) {
+      if (next) {
+        xrPlayerView.classList.add('clean-canvas-mode');
+      } else {
+        xrPlayerView.classList.remove('clean-canvas-mode');
+      }
+    }
+
+    if (restoreBtn) {
+      restoreBtn.style.display = next ? 'flex' : 'none';
+    }
+    if (toggleBtn) {
+      toggleBtn.innerHTML = next ? '<span>⚙️</span> Show HUD' : '<span>👁️</span> Clean 3D View';
+    }
+    if (hudCleanBtn) {
+      hudCleanBtn.textContent = next ? '⚙️ Controls' : '👁️ Clean 3D';
+    }
+    return this.isCleanCanvasMode;
   }
 
   public toggleARPassthroughMode(forceState?: boolean): boolean {
@@ -115,6 +152,11 @@ export class StudioApp {
           canvas.style.backgroundColor = 'transparent';
         }
       }
+      if (this.world?.renderer) {
+        try {
+          this.world.renderer.setClearColor(0x000000, 0);
+        } catch {}
+      }
     } else {
       // Return to VR Plant Mode
       plantEnvironmentService.setARPassthrough(false);
@@ -136,8 +178,32 @@ export class StudioApp {
         arVideo.style.display = 'none';
         arVideo.srcObject = null;
       }
+
+      if (sceneContainer) {
+        const canvas = sceneContainer.querySelector('canvas');
+        if (canvas) {
+          canvas.style.backgroundColor = '#080d14';
+        }
+      }
+      if (this.world?.renderer) {
+        try {
+          this.world.renderer.setClearColor(0x080d14, 1);
+        } catch {}
+      }
     }
 
+    // Immediately synchronize 3D scene elements to hide all floating VR panels and extra parts in AR
+    const activeProject = vuforiaProjectService.getActiveProject();
+    if (this.world) {
+      arRuntimeSyncService.syncActiveProjectToScene(this.world, nextState, activeProject);
+    } else {
+      const scene = (this.assemblySystem as any)?.world?.scene;
+      if (scene) {
+        arRuntimeSyncService.syncActiveProjectToScene(scene, nextState, activeProject);
+      }
+    }
+
+    this.updateXRHUD();
     return this.isARPassthroughActive;
   }
 
@@ -149,6 +215,8 @@ export class StudioApp {
       xrOverlay.classList.add('visible');
       studioLayout.style.display = 'none';
     }
+
+    const activeProject = vuforiaProjectService.getActiveProject();
 
     // Configure procedure in TrainingEngine if specified
     if (procedureId && this.trainingEngine) {
@@ -175,6 +243,16 @@ export class StudioApp {
       this.toggleARPassthroughMode(true);
     } else if (mode === 'vr') {
       this.toggleARPassthroughMode(false);
+    } else {
+      // Synchronize active project matching current AR/VR state
+      if (this.world) {
+        arRuntimeSyncService.syncActiveProjectToScene(this.world, this.isARPassthroughActive, activeProject);
+      } else {
+        const scene = (this.assemblySystem as any)?.world?.scene;
+        if (scene) {
+          arRuntimeSyncService.syncActiveProjectToScene(scene, this.isARPassthroughActive, activeProject);
+        }
+      }
     }
 
     this.updateXRHUD();
@@ -182,7 +260,18 @@ export class StudioApp {
 
   public exitXRPlayerMode(): void {
     this.isXRMode = false;
+    this.toggleCleanCanvasMode(false);
     this.toggleARPassthroughMode(false);
+
+    if (this.world) {
+      arRuntimeSyncService.cleanup(this.world);
+    } else {
+      const scene = (this.assemblySystem as any)?.world?.scene;
+      if (scene) {
+        arRuntimeSyncService.cleanup(scene);
+      }
+    }
+
     const xrOverlay = document.getElementById('xr-player-view');
     const studioLayout = document.getElementById('app-layout');
     if (xrOverlay && studioLayout) {
@@ -196,6 +285,50 @@ export class StudioApp {
     const hudStep = document.getElementById('xr-hud-step-title');
     const hudDesc = document.getElementById('xr-hud-step-desc');
     const hudCheckpoint = document.getElementById('xr-hud-checkpoint');
+    const hudArBadge = document.getElementById('xr-hud-ar-badge');
+    const passBtn = document.getElementById('xr-btn-hud-pass');
+    const failBtn = document.getElementById('xr-btn-hud-fail');
+
+    const activeProject = vuforiaProjectService.getActiveProject();
+
+    // If a custom or target-specific Vuforia template is active, drive HUD from it
+    if (activeProject && (activeProject.template !== 'assembly_qa' || activeProject.id !== 'vfp-hyd-cyl-qa-01')) {
+      const hudInfo = arRuntimeSyncService.getHUDInfoForProject(activeProject);
+      if (hudTitle) hudTitle.textContent = hudInfo.title;
+      if (hudStep) hudStep.textContent = hudInfo.stepTitle;
+      if (hudDesc) hudDesc.textContent = hudInfo.stepDesc;
+      if (hudCheckpoint) hudCheckpoint.textContent = hudInfo.checkpoint;
+      if (hudArBadge) {
+        hudArBadge.textContent = hudInfo.badge;
+        hudArBadge.style.display = this.isARPassthroughActive ? 'block' : 'none';
+      }
+
+      // Update simulation buttons for custom targets
+      if (passBtn && failBtn) {
+        if (activeProject.template === 'cylinder_target') {
+          passBtn.textContent = 'Simulate 8.42 mm (PASS)';
+          failBtn.textContent = 'Simulate 7.85 mm (FAIL)';
+          passBtn.style.display = 'inline-flex';
+          failBtn.style.display = 'inline-flex';
+        } else if (activeProject.template === 'multi_target') {
+          passBtn.textContent = 'Simulate < 1.0G (PASS)';
+          failBtn.textContent = 'Simulate 1.8G (FAIL)';
+          passBtn.style.display = 'inline-flex';
+          failBtn.style.display = 'inline-flex';
+        } else {
+          passBtn.style.display = 'none';
+          failBtn.style.display = 'none';
+        }
+      }
+      return;
+    }
+
+    if (passBtn && failBtn) {
+      passBtn.textContent = 'Simulate 24.02 mm (PASS)';
+      failBtn.textContent = 'Simulate 24.18 mm (FAIL)';
+      passBtn.style.display = 'inline-flex';
+      failBtn.style.display = 'inline-flex';
+    }
 
     if (!this.trainingEngine) return;
     const step = this.trainingEngine.getCurrentStep();
@@ -205,6 +338,10 @@ export class StudioApp {
     if (hudStep) hudStep.textContent = `${step.title}`;
     if (hudDesc) hudDesc.textContent = step.instruction;
     if (hudCheckpoint) hudCheckpoint.textContent = `CHECKPOINT: ${step.checkpoint}`;
+    if (hudArBadge) {
+      hudArBadge.textContent = '👓 AR Passthrough Active · 6DOF Spatial Anchor · Depth Occlusion: ON';
+      hudArBadge.style.display = this.isARPassthroughActive ? 'block' : 'none';
+    }
   }
 
   private updateSidebarActive(viewId: string): void {
@@ -403,11 +540,11 @@ export class StudioApp {
     });
 
     layout.querySelector('#header-btn-quick-xr')?.addEventListener('click', () => {
-      this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'vr');
+      this.navigateTo('xr-player', undefined, 'vr');
     });
 
     layout.querySelector('#header-btn-quick-ar')?.addEventListener('click', () => {
-      this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'ar');
+      this.navigateTo('xr-player', undefined, 'ar');
     });
 
     layout.querySelector('#header-btn-export-pkg')?.addEventListener('click', () => {
@@ -424,7 +561,7 @@ export class StudioApp {
     layout.querySelector('#header-btn-help')?.addEventListener('click', () => {
       openVuforiaHelpModal({
         onLaunchAR: () => {
-          this.navigateTo('xr-player', 'proc-hyd-cyl-01', 'ar');
+          this.navigateTo('xr-player', undefined, 'ar');
         },
       });
     });
@@ -480,20 +617,65 @@ export class StudioApp {
       this.updateXRHUD();
     });
 
+    // Clean 3D Canvas View (Hides 2D HUD to see only 3D data)
+    document.getElementById('xr-btn-toggle-hud')?.addEventListener('click', () => {
+      this.toggleCleanCanvasMode();
+    });
+
+    document.getElementById('xr-btn-restore-hud')?.addEventListener('click', () => {
+      this.toggleCleanCanvasMode(false);
+    });
+
+    document.getElementById('xr-btn-hud-clean-view')?.addEventListener('click', () => {
+      this.toggleCleanCanvasMode();
+    });
+
     const xrPassBtn = document.getElementById('xr-btn-hud-pass');
     xrPassBtn?.addEventListener('click', () => {
+      const activeProject = vuforiaProjectService.getActiveProject();
+      if (activeProject && activeProject.template === 'cylinder_target') {
+        const hudCheckpoint = document.getElementById('xr-hud-checkpoint');
+        if (hudCheckpoint) {
+          hudCheckpoint.textContent = 'CHECKPOINT: Wall Thickness: 8.42 mm (PASS) · Weld Integrity: API 5L OK';
+          hudCheckpoint.style.color = '#4ade80';
+        }
+        return;
+      }
+      if (activeProject && activeProject.template === 'multi_target') {
+        const hudCheckpoint = document.getElementById('xr-hud-checkpoint');
+        if (hudCheckpoint) {
+          hudCheckpoint.textContent = 'CHECKPOINT: Shock Sensor: PASS (< 1.0G) · Tare Weight Verified (482.5 kg)';
+          hudCheckpoint.style.color = '#4ade80';
+        }
+        return;
+      }
       if (this.trainingEngine) {
         const res = this.trainingEngine.submitMeasurement('24.02');
-        alert(res.message);
         this.updateXRHUD();
       }
     });
 
     const xrFailBtn = document.getElementById('xr-btn-hud-fail');
     xrFailBtn?.addEventListener('click', () => {
+      const activeProject = vuforiaProjectService.getActiveProject();
+      if (activeProject && activeProject.template === 'cylinder_target') {
+        const hudCheckpoint = document.getElementById('xr-hud-checkpoint');
+        if (hudCheckpoint) {
+          hudCheckpoint.textContent = 'CHECKPOINT: Wall Thickness: 7.85 mm (FAIL - Below 8.00 mm min threshold)';
+          hudCheckpoint.style.color = '#f87171';
+        }
+        return;
+      }
+      if (activeProject && activeProject.template === 'multi_target') {
+        const hudCheckpoint = document.getElementById('xr-hud-checkpoint');
+        if (hudCheckpoint) {
+          hudCheckpoint.textContent = 'CHECKPOINT: Shock Sensor: FAIL (1.8G - Excessive drop impact registered)';
+          hudCheckpoint.style.color = '#f87171';
+        }
+        return;
+      }
       if (this.trainingEngine) {
         const res = this.trainingEngine.submitMeasurement('24.18');
-        alert(res.message);
         this.updateXRHUD();
       }
     });

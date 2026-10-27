@@ -110,4 +110,107 @@ describe('VuforiaProjectService', () => {
     expect(switched?.augmentations?.length).toBe(3);
     expect(service.getActiveProject().id).toBe(projA.project.id);
   });
+
+  it('updates project metadata and keeps id immutable', () => {
+    const { project } = service.createNewProject({
+      name: 'Initial Name',
+      template: 'assembly_qa',
+    });
+
+    const updated = service.updateProject(project.id, {
+      name: 'Updated Industrial Name',
+      description: 'Updated procedure inspection details',
+      associatedModelId: 'model-valve-manifold-02',
+    });
+
+    expect(updated.id).toBe(project.id);
+    expect(updated.name).toBe('Updated Industrial Name');
+    expect(updated.description).toBe('Updated procedure inspection details');
+    expect(updated.associatedModelId).toBe('model-valve-manifold-02');
+    expect(service.getActiveProject().name).toBe('Updated Industrial Name');
+  });
+
+  it('throws when updating non-existent project id', () => {
+    expect(() => {
+      service.updateProject('invalid-proj-id-999', { name: 'Fail' });
+    }).toThrow(/not found/);
+  });
+
+  it('imports valid project json and switches to it', () => {
+    const rawProject = {
+      name: 'Imported Turbine Inspection',
+      description: 'Turbine fan blade inspection workflow',
+      template: 'blank',
+      associatedModelId: 'model-centrifugal-pump-03',
+      augmentations: [
+        {
+          id: 'imported-pin-1',
+          type: 'spatial_pin',
+          name: 'Blade Datum',
+          label: 'Blade 1 Leading Edge',
+          position: [0.1, 0.2, 0.0],
+          rotation: [0, 0, 0],
+          scale: 1,
+          bindingField: 'none',
+        },
+      ],
+    };
+
+    const imported = service.importProject(rawProject);
+    expect(imported).toBeDefined();
+    expect(imported.id).toMatch(/^vfp-/);
+    expect(imported.name).toBe('Imported Turbine Inspection');
+    expect(imported.augmentations?.length).toBe(1);
+    expect(service.getActiveProject().id).toBe(imported.id);
+  });
+
+  it('imports wrapped project package format', () => {
+    const wrappedPkg = {
+      schemaVersion: '1.0.0',
+      exportType: 'factoryverse_vuforia_project',
+      project: {
+        id: 'vfp-wrapped-101',
+        name: 'Wrapped Package Project',
+        template: 'sop_instruction',
+        associatedModelId: 'model-hydraulic-cyl-01',
+      },
+    };
+
+    const imported = service.importProject(wrappedPkg);
+    expect(imported.name).toBe('Wrapped Package Project');
+    expect(imported.template).toBe('sop_instruction');
+    expect(service.getActiveProject().id).toBe(imported.id);
+  });
+
+  it('rejects invalid import payloads lacking name', () => {
+    expect(() => {
+      service.importProject({ invalid: 123 });
+    }).toThrow(/missing required "name"/);
+
+    expect(() => {
+      service.importProject(null);
+    }).toThrow(/expected a JSON object/);
+  });
+
+  it('exports active project to formatted JSON package', () => {
+    const exportResult = service.exportProjectJSON();
+    expect(exportResult.filename).toMatch(/\.json$/);
+    const parsed = JSON.parse(exportResult.json);
+    expect(parsed.schemaVersion).toBe('1.0.0');
+    expect(parsed.exportType).toBe('factoryverse_vuforia_project');
+    expect(parsed.project.name).toBe(service.getActiveProject().name);
+  });
+
+  it('deletes project and falls back gracefully', () => {
+    const { project } = service.createNewProject({
+      name: 'To Be Deleted',
+      template: 'blank',
+    });
+    expect(service.getActiveProject().id).toBe(project.id);
+
+    const remaining = service.deleteProject(project.id);
+    expect(remaining).toBeDefined();
+    expect(service.getAllProjects().some((p) => p.id === project.id)).toBe(false);
+  });
 });
+

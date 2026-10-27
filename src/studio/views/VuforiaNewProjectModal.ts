@@ -77,7 +77,7 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
               Project Name <span style="color: #f43f5e;">*</span>
             </label>
             <div style="position: relative; display: flex; align-items: center;">
-              <input id="vf-npm-input-name" type="text" class="form-input" value="${projectName}" placeholder="e.g. Hydraulic Cylinder AR Inspection" style="font-size: 13px; font-weight: 600; padding: 8px 12px; width: 100%; background: #060d17; border: 1px solid #1e3a5f; border-radius: 6px; color: #fff;" />
+              <input id="vf-npm-input-name" data-testid="vf-npm-input-name" type="text" class="form-input" value="${projectName}" placeholder="e.g. Hydraulic Cylinder AR Inspection" style="font-size: 13px; font-weight: 600; padding: 8px 12px; width: 100%; background: #060d17; border: 1px solid #1e3a5f; border-radius: 6px; color: #fff;" />
             </div>
           </div>
 
@@ -86,14 +86,14 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
             <label style="font-size: 11px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
               Select Experience Template
             </label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div id="vf-npm-templates-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
               ${VUFORIA_PROJECT_TEMPLATES.map((tmpl) => {
                 const isSelected = tmpl.id === selectedTemplate;
                 return `
                   <div class="vf-npm-template-card" data-template="${tmpl.id}" data-testid="vf-template-${tmpl.id}" style="padding: 12px; background: ${isSelected ? '#10243e' : '#070e18'}; border: 2px solid ${isSelected ? '#38bdf8' : '#1e3a5f'}; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                       <span style="font-size: 18px;">${tmpl.icon}</span>
-                      <strong style="font-size: 12px; color: ${isSelected ? '#fff' : '#cbd5e1'};">${tmpl.title}</strong>
+                      <strong class="vf-tmpl-title" style="font-size: 12px; color: ${isSelected ? '#fff' : '#cbd5e1'};">${tmpl.title}</strong>
                     </div>
                     <p style="font-size: 10px; color: #94a3b8; margin: 0; line-height: 1.4;">
                       ${tmpl.description}
@@ -123,7 +123,7 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
             <span style="font-size: 20px;">💡</span>
             <div>
               <span style="color: #38bdf8; font-weight: 700;">Zero-Install WebXR AR Authoring:</span>
-              <span>Initializes a fresh workspace in Vuforia Studio with calibrated tracking and 6DoF spatial coordinates.</span>
+              <span id="vf-npm-summary-text">Initializes a fresh workspace in Vuforia Studio with calibrated tracking and 6DoF spatial coordinates.</span>
             </div>
           </div>
 
@@ -158,10 +158,36 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
       projectName = (e.target as HTMLInputElement).value;
     });
 
+    const updateTemplateSelectionUI = (tmplId: VuforiaProjectTemplate) => {
+      selectedTemplate = tmplId;
+      modal.querySelectorAll('.vf-npm-template-card').forEach((card) => {
+        const cTmpl = card.getAttribute('data-template');
+        const isMatch = cTmpl === tmplId;
+        (card as HTMLElement).style.background = isMatch ? '#10243e' : '#070e18';
+        (card as HTMLElement).style.borderColor = isMatch ? '#38bdf8' : '#1e3a5f';
+        const titleEl = card.querySelector('.vf-tmpl-title') as HTMLElement;
+        if (titleEl) {
+          titleEl.style.color = isMatch ? '#fff' : '#cbd5e1';
+        }
+      });
+      const summaryEl = modal.querySelector('#vf-npm-summary-text');
+      if (summaryEl) {
+        if (tmplId === 'blank') {
+          summaryEl.textContent = 'Creates an empty spatial canvas without preloaded annotations, ready for full custom authoring.';
+        } else if (tmplId === 'assembly_qa') {
+          summaryEl.textContent = 'Pre-loads CAD datum points, seal groove tolerances, and dimensional verification annotations.';
+        } else if (tmplId === 'maintenance_iot') {
+          summaryEl.textContent = 'Pre-loads live ThingWorx IoT telemetry bindings (hydraulic pressure, oil temp, vibration).';
+        } else if (tmplId === 'sop_instruction') {
+          summaryEl.textContent = 'Pre-loads operator SOP step-by-step procedures and safety lockout waypoint markers.';
+        }
+      }
+    };
+
     modal.querySelectorAll('.vf-npm-template-card').forEach((card) => {
       card.addEventListener('click', (e) => {
-        selectedTemplate = (e.currentTarget as HTMLElement).getAttribute('data-template') as VuforiaProjectTemplate;
-        renderModal();
+        const tmplId = (e.currentTarget as HTMLElement).getAttribute('data-template') as VuforiaProjectTemplate;
+        updateTemplateSelectionUI(tmplId);
       });
     });
 
@@ -171,8 +197,10 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
     });
 
     modal.querySelector('#vf-npm-btn-create')?.addEventListener('click', () => {
-      const finalName = projectName.trim() || 'New Vuforia AR Experience';
-      const chosenModel = models[selectedModelIdx];
+      const liveName = inputName ? inputName.value.trim() : projectName.trim();
+      const finalName = liveName || `Industrial AR Project #${Math.floor(100 + Math.random() * 900)}`;
+      const liveModelIdx = selectModel ? Number(selectModel.value) : selectedModelIdx;
+      const chosenModel = models[liveModelIdx] || models[0];
 
       const { project, augmentations } = vuforiaProjectService.createNewProject({
         name: finalName,
@@ -183,11 +211,16 @@ export function openVuforiaNewProjectModal(options: VuforiaNewProjectModalOption
       options.onProjectCreated({
         project,
         augmentations,
-        modelIndex: selectedModelIdx,
+        modelIndex: liveModelIdx,
       });
 
       modal.remove();
     });
+
+    setTimeout(() => {
+      inputName?.focus();
+      inputName?.select();
+    }, 50);
   };
 
   document.body.appendChild(modal);

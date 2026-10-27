@@ -11,6 +11,7 @@ import {
 } from '@iwsdk/core';
 import { AssemblyPart } from '../components.js';
 import { TrainingEngine } from '../training/training-engine.js';
+import { arRuntimeSyncService } from '../studio/services/ar-runtime-sync-service.js';
 
 export class AssemblySystem extends createSystem({
   parts: { required: [AssemblyPart] },
@@ -59,20 +60,19 @@ export class AssemblySystem extends createSystem({
       this.benchObject = (this.world as any).scene?.getObjectByName('WorkstationBench');
     }
     if (this.benchObject) {
-      // In AR Passthrough mode, transform bench to a subtle alignment wireframe grid on physical desk
-      this.benchObject.traverse((child: any) => {
-        if (child.isMesh && child.material) {
-          if (enabled) {
-            child.material.transparent = true;
-            child.material.opacity = 0.28;
-            child.material.wireframe = true;
-          } else {
+      if (enabled) {
+        // In AR Passthrough mode, hide the virtual bench so the real physical desk is unobstructed
+        this.benchObject.visible = false;
+      } else {
+        this.benchObject.visible = true;
+        this.benchObject.traverse((child: any) => {
+          if (child.isMesh && child.material) {
             child.material.transparent = false;
             child.material.opacity = 1.0;
             child.material.wireframe = false;
           }
-        }
-      });
+        });
+      }
     }
     return this.isARPassthroughMode;
   }
@@ -89,9 +89,17 @@ export class AssemblySystem extends createSystem({
   }
 
   update(): void {
-    if (!this.trainingEngine) return;
-
     this.animationTime += 0.016;
+
+    // Update real-time telemetry on floating 3D AR gauge billboards
+    arRuntimeSyncService.updateTelemetry({
+      pressureBar: 208.3 + Math.sin(this.animationTime * 1.5) * 2.5,
+      temperatureC: 62.4 + Math.sin(this.animationTime * 0.8) * 1.2,
+      vibrationRms: 0.082 + Math.sin(this.animationTime * 2.0) * 0.005,
+      flowRateLmin: 14.8 + Math.sin(this.animationTime * 1.0) * 0.4,
+    });
+
+    if (!this.trainingEngine) return;
 
     // 1. Locate and animate Vuforia Spatial Waypoint Beacon
     if (!this.beaconObject && this.world) {

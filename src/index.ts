@@ -34,7 +34,8 @@ World.create(
     xrTrainingSys.setDependencies(trainingEngine, assemblySys || undefined);
   }
 
-  // 3. Connect Training Engine to Studio App
+  // 3. Connect World and Training Engine to Studio App
+  studioApp.setWorld(world);
   studioApp.setXREngine(trainingEngine, assemblySys || undefined);
 }).catch((err) => {
   console.warn('[IWSDK] Non-fatal runtime notice (Studio active):', err);
